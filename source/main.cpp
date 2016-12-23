@@ -6,6 +6,7 @@
 #include <ctype.h>
 
 #include "ak2i.h"
+#include "ak2i_flash.h"
 
 struct ntrcardhax_info {
     int32_t version;
@@ -106,7 +107,7 @@ static u8 loader_bin[0x44] =
 
 
 void pause() {
-	iprintf("press <A>\n");
+	iprintf("press <A>\n\n");
 	while(1) {
 		scanKeys();
 		if(keysDown() & KEY_A)
@@ -385,11 +386,11 @@ int inject() {
     // this funcion write enable only above 0x40000 on ak2i, write enable all on ak2
     unlockFlash();
 
-    iprintf("Unlock ASIC");
+    iprintf("Unlock ASIC\n");
     // unlock 0x30000 for save map, see definition of NOR_FAT2_START above
     unlockASIC();
 
-    iprintf("Erase flash");
+    iprintf("Erase flash\n");
     for (u32 i = 0; i < AK2I_PATCH_LENGTH; i += 64 * 1024) {
         if (hwid == 0x81) {
             eraseFlashBlock_81(i);
@@ -401,7 +402,7 @@ int inject() {
 
     //buffer[0x200C] = 'B';
 
-    iprintf("Writing...");
+    iprintf("Writing...\n");
 
     int old = 0;
 
@@ -433,16 +434,20 @@ int inject() {
 }
 
 
-void dumpAndPatch() {
-    if (dump() < 0) {
-        iprintf("Failed\n\n");
-        return;
-    }
-
+void patchAndInject() {
     if (patch() < 0) {
         iprintf("Failed\n\n");
         return;
     }
+
+    if (inject() < 0) {
+        iprintf("Failed\n\n");
+        return;
+    }
+}
+
+void injectOriginal() {
+    memcpy(bootrom + AK2I_PAYLOAD_OFFSET, orig_header, AK2I_PAYLOAD_LENGTH);
 
     if (inject() < 0) {
         iprintf("Failed\n\n");
@@ -465,8 +470,37 @@ int main(void) {
     pause();
 
     waitCartReady();
-    dumpAndPatch();
 
-    pause();
+    // preload
+    if (dump() < 0) {
+        iprintf("Failed\n\n");
+        pause();
+        return 0;
+    }
+
+
+    while (true) {
+        iprintf("You can swap flashcart for flash\n");
+        iprintf("A. inject ntrcardhax\n");
+        iprintf("X. restore original bootrom\n");
+        iprintf("B. exit\n\n");
+
+        while (true) {
+            scanKeys();
+            u32 keys = keysDown();
+
+            if (keys & KEY_A) {
+                patchAndInject();
+                break;
+            } else if (keys & KEY_X) {
+                injectOriginal();
+                break;
+            } else if (keys & KEY_B) {
+                return 0;
+            }
+            swiWaitForVBlank();
+        }
+    }
+
     return 0;
 }
