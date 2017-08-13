@@ -5,23 +5,10 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "ak2i.h"
-#include "ak2i_flash.h"
+#include "flashcart_core/device.h"
+#include "binaries.h"
 
-struct ntrcardhax_info {
-    int32_t version;
-    u32 ntrcard_header_addr;
-    u32 rtfs_cfg_addr;
-    u32 rtfs_handle_addr;
-};
-
-#define AK2I_PATCH_LENGTH 0x20000
-#define AK2I_PAYLOAD_OFFSET 0x2000
-#define AK2I_PAYLOAD_LENGTH 0x1000
-
-static u8 bootrom[AK2I_PATCH_LENGTH];
-static u8 payload[AK2I_PAYLOAD_LENGTH];
-static int payloadLength = 0x1000;
+u8 *orig_flashrom;
 
 static uint16_t crc16tab[] =
 {
@@ -59,54 +46,7 @@ static uint16_t crc16tab[] =
     0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
 };
 
-static struct ntrcardhax_info o_ak2i_ntrcardhax_infos[6] = {
-    { 17120, 0x80e18f4, 0x80e4c0c, 0x80ec190 },
-    { 18182, 0x80e18f4, 0x80e4c0c, 0x80ec190 },
-    { 19216, 0x80e18f4, 0x80e4c0c, 0x80ec190 },
-    { 20262, 0x80e18f4, 0x80e4c0c, 0x80ec190 },
-    { 21288, 0x80e1cb4, 0x80e4bcc, 0x80ec150 },
-    { 22313, 0x80e1cb4, 0x80e4bcc, 0x80ec150 },
-};
-
-static struct ntrcardhax_info n_ak2i_ntrcardhax_infos[6] = {
-    { 17120, 0x80e2b34, 0x80e5e4c, 0x80ed3d0 },
-    { 18182, 0x80e1974, 0x80e4c8c, 0x80ec210 },
-    { 19218, 0x80e1974, 0x80e4c8c, 0x80ec210 },
-    { 20262, 0x80e1974, 0x80e4c8c, 0x80ec210 },
-    { 21288, 0x80f9d34, 0x80fcc4c, 0x81041d0 },
-    { 22313, 0x80f9d34, 0x80fcc4c, 0x81041d0 },
-};
-
-//	 ldr sp,=0x22140000
-//
-//	 ;Disable IRQ
-//	 mrs r0, cpsr
-//	 orr r0, #(1<<7)
-//	 msr cpsr_c, r0
-//
-//	 adr r0, kernelmode
-//	 swi 0x7B
-//
-//kernelmode:
-//	 mov r2, #0x22
-//	 msr CPSR_c, #0xDF
-//	 ldr r3, =0x33333333 ;R/W
-//	 mcr p15, 0, r3,c5,c0, 2
-//	 mov r2, #0xCC
-//	 mcr p15, 0, r3,c5,c0, 3
-//	 ldr r0, =0x23F00000
-//	 bx r0
-static u8 loader_bin[0x44] =
-{
-    0x30, 0xD0, 0x9F, 0xE5, 0x00, 0x00, 0x0F, 0xE1, 0x80, 0x00, 0x80, 0xE3, 0x00, 0xF0, 0x21, 0xE1,
-    0x00, 0x00, 0x8F, 0xE2, 0x7B, 0x00, 0x00, 0xEF, 0x22, 0x20, 0xA0, 0xE3, 0xDF, 0xF0, 0x21, 0xE3,
-    0x14, 0x30, 0x9F, 0xE5, 0x50, 0x3F, 0x05, 0xEE, 0xCC, 0x20, 0xA0, 0xE3, 0x70, 0x3F, 0x05, 0xEE,
-    0x08, 0x00, 0x9F, 0xE5, 0x10, 0xFF, 0x2F, 0xE1, 0x00, 0x00, 0x14, 0x22, 0x33, 0x33, 0x33, 0x33,
-    0x00, 0x00, 0xF0, 0x23,
-};
-
-
-void pause() {
+void waitPressA() {
 	iprintf("press <A>\n\n");
 	while(1) {
 		scanKeys();
@@ -117,23 +57,33 @@ void pause() {
 	scanKeys();
 }
 
-void waitCartReady() {
-    u32 chipid;
-    u32 hwid;
-
+Flashcart* waitCartReady() {
+    Flashcart *cart = NULL;
     do {
         iprintf("Please eject & reinsert cartridge.\n");
-        pause();
+        waitPressA();
 
-        chipid = getChipID();
-        hwid = getHWID();
+        iprintf("ChipID: %08X\n", Flashcart::getChipID());
+        iprintf("HW Rev: %08X\n", Flashcart::getHardwareVersion());
 
-        iprintf("CHIP: 0x%04X HW: %X\n", chipid, hwid);
-    } while (chipid != 0xFC2 || (hwid != 0x81 && hwid != 0x44));
+        cart = Flashcart::detectCart();
+    } while(!cart);
+
+    iprintf("Detected: %s", cart->getDescription());
+
+    return cart;
 }
 
 int percent(int c, int t) {
     return c * 100 / t;
+}
+
+void ShowProgress(char screen, uint32_t curr, uint32_t total) {
+    if (curr * 100 % total) {
+        return;
+    }
+    
+    iprintf("\r%3d%%", curr * 100 / total);
 }
 
 uint16_t calcCrc(u8 *data, uint32_t length)
@@ -146,64 +96,38 @@ uint16_t calcCrc(u8 *data, uint32_t length)
     return crc;
 }
 
-int dump() {
-    // recheck;
-    u32 chipid = getChipID();
-    if (chipid != 0xFC2) {
-        iprintf("Cartridge is not AK2i\n");
-        return -1;
-    }
-    u32 hwid = getHWID();
-    if (hwid != 0x81 && hwid != 0x44) {
-        iprintf("Cartridge is not AK2i\n");
-        return -1;
-    }
+u8* dump(Flashcart *cart) {
+    u32 length = cart->getMaxLength();
 
-    setMapTableAddress(AK2I_MTN_NOR_OFFSET, 0);
+    if (orig_flashrom) {
+        iprintf("already loaded original rom\n");
+        iprintf("if continue, you will lost this data\n");
+        iprintf("and you can lost restore chance\n");
+        iprintf("Y. continue\n");
+        iprintf("A. exit\n");
 
-    // setup flash to 1681
-    if (hwid == 0x81) {
-        iprintf("Setup flash to 1681\n");
-        setFlash1681_81();
-    }
+        while (true) {
+            scanKeys();
+            u32 keys = keysDown();
 
-    iprintf("Active FAT MAP\n");
-    activeFatMap();
-
-    int old = 0;
-
-    iprintf("0%%");
-    for (u32 i = 0, offset = 0, read = 0; i < AK2I_PATCH_LENGTH; i += 512) {
-        int curr = percent(i, AK2I_PATCH_LENGTH);
-        if (curr != old && curr % 5 == 0) {
-            iprintf("\r%d%%", curr);
-            old = curr;
+            if (keys & KEY_A) {
+                return NULL;
+            } else if (keys & KEY_Y) {
+                break;
+            }
+            swiWaitForVBlank();
         }
-        u32 toRead = 512;
-        if (toRead > AK2I_PATCH_LENGTH - i) {
-            toRead = AK2I_PATCH_LENGTH - i;
-        }
-        memset(bootrom + offset, 0, toRead);
-        readFlash(i, bootrom + offset, toRead);
-        offset += toRead;
+        free(orig_flashrom);
     }
-    iprintf("\r100%%\n");
 
-    iprintf("Done\n\n");
-
-//    for (u32 i = 0; i < AK2I_PATCH_LENGTH; i += 16) {
-//        printf("%05X:%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
-//               i,
-//               bootrom[i], bootrom[i + 1], bootrom[i + 2], bootrom[i + 3],
-//               bootrom[i + 4], bootrom[i + 5], bootrom[i + 6], bootrom[i + 7],
-//               bootrom[i + 8], bootrom[i + 9], bootrom[i + 10], bootrom[i + 11],
-//               bootrom[i + 12], bootrom[i + 13], bootrom[i + 14], bootrom[i + 15]);
-//
-//        if (i % 10 == 0) {
-//            pause();
-//        }
-//    }
-//    pause();
+    orig_flashrom = static_cast<u8*>(malloc(sizeof(u8) * length));
+    memset(orig_flashrom, 0, sizeof(u8) * length);
+    u8 *temp = orig_flashrom;
+    iprintf("\n");
+    ShowProgress(0, 0, 1);
+    cart->readFlash(0, length, temp);
+    ShowProgress(0, 1, 1);
+    iprintf("\nDone\n\n");
 
     return 0;
 }
@@ -211,248 +135,51 @@ int dump() {
 int8_t selectDeviceType() {
     iprintf("Use arrow keys\nand <A> to choose device type\n");
 
-    u8 is_new = 0;
+    u8 is_dev = 0;
     while (true) {
-        iprintf("\r%s", is_new ? "NEW 3DS" : "OLD 3DS");
+        iprintf("\r%s", is_dev ? "DEV" : "RETAIL");
 
         scanKeys();
         u32 keys = keysDown();
         if (keys & (KEY_UP | KEY_DOWN)) {
-            is_new = (is_new + 1) & 1;
+            is_dev = (is_dev + 1) & 1;
         } else if (keys & KEY_A) {
             iprintf("\n\n");
-            return is_new;
+            return is_dev;
         } else if (keys & KEY_B) {
             iprintf("\r(cancelled by user)\n\n");
             return -1;
         }
         swiWaitForVBlank();
     }
-}
-
-int32_t selectFirmVersion(int8_t device) {
-    iprintf("Use arrow keys\nand <A> to choose target firm version\n");
-
-    const u32 o_ver[6] = {17120, 18182, 19216, 20262, 21288, 22313};
-    const u32 n_ver[6] = {17120, 18182, 19218, 20262, 21288, 22313};
-
-    const char* versions[6] = {
-        "(9.0 - 9.2)  ",
-        "(9.3 - 9.4)  ",
-        "(9.5)        ",
-        "(9.6 - 9.9)  ",
-        "(10.0 - 10.1)",
-        "(10.2 - 10.3)"
-    };
-
-    int idx = 0;
-    while (true) {
-        iprintf("\rv%d %s", (device ? n_ver[idx] : o_ver[idx]), versions[idx]);
-
-        scanKeys();
-        u32 keys = keysDown();
-        if (keys & KEY_UP) {
-            idx -= 1;
-            if (idx < 0) {
-                idx = 0;
-            }
-        } else if (keys & KEY_DOWN) {
-            idx += 1;
-            if (idx > 5) {
-                idx = 5;
-            }
-        } else if (keys & KEY_A) {
-            iprintf("\n\n");
-            return device ? n_ver[idx] : o_ver[idx];
-        } else if (keys & KEY_B) {
-            iprintf("\r(cancelled by user)\n\n");
-            return -1;
-        }
-
-        swiWaitForVBlank();
-    }
-}
-
-int patch() {
-    int8_t device = selectDeviceType();
-    if (device < 0) {
-        return -1;
-    }
-
-    int32_t version = selectFirmVersion(device);
-    if (version < 0) {
-        return -1;
-    }
-
-    struct ntrcardhax_info *info;
-    for (int i = 0; i < 6; i++) {
-        struct ntrcardhax_info *tmp = device
-                                    ? &n_ak2i_ntrcardhax_infos[i]
-                                    : &o_ak2i_ntrcardhax_infos[i];
-        if (tmp->version == version) {
-            info = tmp;
-            break;
-        }
-    }
-
-    memcpy(payload, bootrom + AK2I_PAYLOAD_OFFSET, AK2I_PAYLOAD_LENGTH);
-
-    // see https://github.com/peteratebs/rtfsprofatfilesystem/blob/b0003c4/include/rtfstypes.h#L1468-L1549
-    int rtfsCfgAdrDiff = info->rtfs_cfg_addr - info->ntrcard_header_addr;
-    // use ~ drno_to_dr_map
-    int rtfsCopyLen = 0x144;
-
-    int wrappedAdr = (rtfsCfgAdrDiff) & 0xFFF;
-
-    if ((wrappedAdr >= 0x0) && (wrappedAdr <= 0x10)) {
-        iprintf("Conflict ntrcard header");
-        return -1;
-    }
-    if ((wrappedAdr >= 0x2A8) && (wrappedAdr <= 0x314)) {
-        iprintf("Conflict rtfs struct");
-        return -1;
-    }
-
-    uint32_t rtfs_cfg[0x144] = {0};
-    // cfg_NFINODES
-    rtfs_cfg[5] = 1;
-    // mem_region_pool
-    rtfs_cfg[17] = (uint32_t)(info->ntrcard_header_addr + 0x4);
-    int i;
-    // drno_to_dr_map
-    for (i = 0; i < 26; i++)
-        rtfs_cfg[55 + i] = (uint32_t)(info->ntrcard_header_addr + 0);
-
-    uint32_t* prtfs_cfg32 = rtfs_cfg;
-
-    for (i = 0; i < rtfsCopyLen; i+=4) {
-        wrappedAdr = (rtfsCfgAdrDiff + i) & 0xFFF;
-        //printf("addr: %08X data: %08X\n", wrappedAdr, prtfs_cfg32[i/4]);
-        if((wrappedAdr >= 0x14) && (wrappedAdr <= 0x60)) {
-            //if(i < 0xFC) {
-            //    iprintf("Not enough buffer");
-            //    return -1;
-            //}
-            break;
-        }
-        *(uint32_t*)&payload[wrappedAdr] = prtfs_cfg32[i/4];
-    }
-
-    *(uint32_t*)&payload[0x2EC] = info->rtfs_handle_addr; //Some handle rtfs uses
-    *(uint32_t*)&payload[0x2F0] = 0x41414141; //Bypass FAT corruption error
-    *(uint32_t*)&payload[0x31C] = info->ntrcard_header_addr + 0x2A8; //This is the PC we want to jump to (from a BLX)
-
-    memcpy(&payload[0x2A8], loader_bin, 0x44);
-
-    uint16_t crc = calcCrc(payload, 0x15E);
-    *(uint16_t*)&payload[0x15E] = crc;
-
-    memcpy(bootrom + AK2I_PAYLOAD_OFFSET, payload, AK2I_PAYLOAD_LENGTH);
-
-    iprintf("crc: %x\n", crc);
-
-    return 0;
 }
 
 
 int inject() {
-    u32 chipid = getChipID();
-    if (chipid != 0xFC2) {
-        iprintf("Cartridge is not AK2i\n");
+    Flashcart *cart = waitCartReady();
+
+    u8 deviceType = selectDeviceType();
+    if (deviceType < 0) {
         return -1;
     }
 
-    u32 hwid = getHWID();
-    if (hwid != 0x81 && hwid != 0x44 ) {
-        iprintf("Cartridge is not AK2i\n");
+    u8 *buf = dump(cart);
+    if (!buf) {
         return -1;
     }
 
-    iprintf("Cart: 0x%04X HW: %x\n", chipid, hwid);
+    u8 *blowfish_key = deviceType ? blowfish_dev_bin : blowfish_retail_bin;
+    u8 *firm = deviceType ? boot9strap_dev_firm : boot9strap_ntr_firm;
+    u32 firm_size = deviceType ? boot9strap_dev_firm_size : boot9strap_ntr_firm_size;
 
-    setMapTableAddress(AK2I_MTN_NOR_OFFSET, 0);
-
-    // setup flash to 1681
-    if (hwid == 0x81) {
-        iprintf("Setup flash to 1681\n");
-        setFlash1681_81();
-    }
-
-    iprintf("Active FAT MAP\n");
-    // have to do this on ak2i before making fatmap, or the first 128k flash data will be screwed up.
-    activeFatMap();
-
-    iprintf("Unlock flash\n");
-    // this funcion write enable only above 0x40000 on ak2i, write enable all on ak2
-    unlockFlash();
-
-    iprintf("Unlock ASIC\n");
-    // unlock 0x30000 for save map, see definition of NOR_FAT2_START above
-    unlockASIC();
-
-    iprintf("Erase flash\n");
-    for (u32 i = 0; i < AK2I_PATCH_LENGTH; i += 64 * 1024) {
-        if (hwid == 0x81) {
-            eraseFlashBlock_81(i);
-        } else {
-            eraseFlashBlock_44(i);
-        }
-    }
-    //ioAK2EraseFlash( 0, CHIP_ERASE );
-
-    //buffer[0x200C] = 'B';
-
-    iprintf("Writing...\n");
-
-    int old = 0;
-
-    iprintf("%0");
-    for (u32 i = 0; i < AK2I_PATCH_LENGTH; i += 512) {
-        int curr = percent(i, AK2I_PATCH_LENGTH);
-        if (curr != old && curr % 5 == 0) {
-            iprintf("\r%d%%", curr);
-            old = curr;
-        }
-        if (hwid == 0x81) {
-            writeFlash_81(i, bootrom + i, 512);
-        } else {
-            writeFlash_44(i, bootrom + i, 512);
-        }
-
-        if (!verifyFlash(bootrom + i, i, 512)) {
-            iprintf("verify failed at %08X\n", i);
-        }
-    }
-    iprintf("\r100%%\n");
-
-    iprintf("Lock flash\n");
-    lockFlash();
-
-    iprintf("Done\n\n");
+    iprintf("\n");
+    ShowProgress(0, 0, 1);
+    cart->writeBlowfishAndFirm(blowfish_key, firm, firm_size);
+    ShowProgress(0, 1, 1);
+    cart->cleanup();
+    iprintf("\nDone\n\n");
 
     return 0;
-}
-
-
-void patchAndInject() {
-    if (patch() < 0) {
-        iprintf("Failed\n\n");
-        return;
-    }
-
-    if (inject() < 0) {
-        iprintf("Failed\n\n");
-        return;
-    }
-}
-
-void injectOriginal() {
-    memcpy(bootrom + AK2I_PAYLOAD_OFFSET, orig_header, AK2I_PAYLOAD_LENGTH);
-
-    if (inject() < 0) {
-        iprintf("Failed\n\n");
-        return;
-    }
 }
 
 int main(void) {
@@ -461,28 +188,21 @@ int main(void) {
 
     sysSetBusOwners(true, true); // give ARM9 access to the cart
 
-    iprintf("AK2I ntrcardhax injector\n");
-    iprintf("* application will remove *\n");
-    iprintf("* nds flashcart feature   *\n");
-    iprintf("* if you want recover,    *\n");
-    iprintf("* need another flashcart  *\n");
+    iprintf("= AK2I NTRBOOTHAX FLASHER =\n\n");
 
-    pause();
+    iprintf("* if you use non ak2i     *\n");
+    iprintf("* you will lost flashcart *\n");
+    iprintf("* feature.                *\n");
+    iprintf("* DO NOT CLOSE THIS APP   *\n");
+    iprintf("* IF YOU DONT HAVE SAME   *\n");
+    iprintf("* FLASHCART               *\n");
 
-    waitCartReady();
-
-    // preload
-    if (dump() < 0) {
-        iprintf("Failed\n\n");
-        pause();
-        return 0;
-    }
-
+    waitPressA();
 
     while (true) {
         iprintf("You can swap flashcart for flash\n");
-        iprintf("A. inject ntrcardhax\n");
-        iprintf("X. restore original bootrom\n");
+        iprintf("A. inject ntrboothax\n");
+        iprintf("X. restore flashcart\n");
         iprintf("B. exit\n\n");
 
         while (true) {
@@ -490,10 +210,7 @@ int main(void) {
             u32 keys = keysDown();
 
             if (keys & KEY_A) {
-                patchAndInject();
-                break;
-            } else if (keys & KEY_X) {
-                injectOriginal();
+                inject();
                 break;
             } else if (keys & KEY_B) {
                 return 0;
