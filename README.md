@@ -29,3 +29,9 @@ DO NOT USE THIS ON NDSI
 * [SciresM][sciresm] - Parent of `boot9strap`
 * [kitling][kitling] - Made `flashcart_core`
 * [hedgeberg][hedgeberg] - RE Cartridge
+* And other talented hackers
+
+[normmatt]: https://github.com/Normmatt
+[sciresm]: https://twitter.com/SciresM
+[kitling]: https://github.com/kitling
+[hedgeberg]: https://github.com/hedgeberg
