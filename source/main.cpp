@@ -200,7 +200,7 @@ int main(void) {
         iprintf("You can swap flashcart for flash\n");
         iprintf("X. load flashrom\n");
         iprintf("A. inject ntrboothax\n");
-        iprintf("Y. restore flashrom\n");
+//        iprintf("Y. restore flashrom\n");
         iprintf("B. exit\n\n");
 
         while (true) {
@@ -213,9 +213,9 @@ int main(void) {
             } else if (keys & KEY_X) {
                 load();
                 break;
-            } else if (keys & KEY_Y) {
-                restore();
-                break;
+//            } else if (keys & KEY_Y) {
+//                restore();
+//                break;
             } else if (keys & KEY_B) {
                 return 0;
             }
