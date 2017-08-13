@@ -1,3 +1,5 @@
 *.elf
 *.nds
 build/
+binaries/
+include/binaries.h
