@@ -138,8 +138,8 @@ int inject() {
     }
 
     u8 *blowfish_key = deviceType ? blowfish_dev_bin : blowfish_retail_bin;
-    u8 *firm = deviceType ? boot9strap_dev_firm : boot9strap_ntr_firm;
-    u32 firm_size = deviceType ? boot9strap_dev_firm_size : boot9strap_ntr_firm_size;
+    u8 *firm = deviceType ? boot9strap_ntr_dev_firm : boot9strap_ntr_firm;
+    u32 firm_size = deviceType ? boot9strap_ntr_dev_firm_size : boot9strap_ntr_firm_size;
 
     iprintf("Flash ntrboothax\n");
     ShowProgress(0, 0, 1);
