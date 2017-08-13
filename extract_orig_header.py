@@ -2,6 +2,8 @@ import sys
 
 with open(sys.argv[1], 'rb') as r:
     d = r.read()[0x2000:0x3000]
+    with open(sys.argv[1] + '.nds', 'wb') as w:
+        w.write(d)
 
     print 'uint8_t orig_header[] = {'
     for idx, x in enumerate(d):

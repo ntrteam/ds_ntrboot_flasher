@@ -328,91 +328,16 @@ void flash(u16 hwid) {
 
 void readFirm(u32 *dest) {
 }
-/*
-void getHttp(char* url) {
-//---------------------------------------------------------------------------------
-    // Let's send a simple HTTP request to a server and print the results!
-
-    // store the HTTP request for later
-    const char * request_text = 
-        "GET /dswifi/example1.php HTTP/1.1\r\n"
-        "Host: www.akkit.org\r\n"
-        "User-Agent: Nintendo DS\r\n\r\n";
-
-    // Find the IP address of the server, with gethostbyname
-    struct hostent * myhost = gethostbyname( url );
-    iprintf("Found IP Address!\n");
- 
-    // Create a TCP socket
-    int my_socket;
-    my_socket = socket( AF_INET, SOCK_STREAM, 0 );
-    iprintf("Created Socket!\n");
-
-    // Tell the socket to connect to the IP address we found, on port 80 (HTTP)
-    struct sockaddr_in sain;
-    sain.sin_family = AF_INET;
-    sain.sin_port = htons(80);
-    sain.sin_addr.s_addr= *( (unsigned long *)(myhost->h_addr_list[0]) );
-    connect( my_socket,(struct sockaddr *)&sain, sizeof(sain) );
-    iprintf("Connected to server!\n");
-
-    // send our request
-    send( my_socket, request_text, strlen(request_text), 0 );
-    iprintf("Sent our request!\n");
-
-    // Print incoming data
-    iprintf("Printing incoming data:\n");
-
-    int recvd_len;
-    char incoming_buffer[256];
-
-    while( ( recvd_len = recv( my_socket, incoming_buffer, 255, 0 ) ) != 0 ) { // if recv returns 0, the socket has been closed.
-        if(recvd_len>0) { // data was received!
-            incoming_buffer[recvd_len] = 0; // null-terminate
-            iprintf(incoming_buffer);
-        }
-    }
-
-    iprintf("Other side closed connection!");
-
-    shutdown(my_socket,0); // good practice to shutdown the socket.
-
-    closesocket(my_socket); // remove the socket.
-}
-*/
 
 void dump(u16 hwid) {
     char *fn;
-//    chdir("sd:/");
-//
-//    switch (hwid) {
-//        case 0x8181:
-//            fn = "/firm8181.bin";
-//            break;
-//        case 0x4444:
-//            fn = "/firm4444.bin";
-//            break;
-//        default:
-//            // return;
-//            fn = "/firm0000.bin";
-//            break;
-//    }
-//    iprintf("open file: %s\n", fn);
-//    FILE* outf = fopen(fn, "wb");
-//    if (outf == NULL) {
-//        iprintf("Cannot open file\n");
-//        return;
-//    }
 
     iprintf("Start dump, DO NOT turn off DS.\n");
     iprintf("0%%");
-    //fwrite("START", 1, 5, outf);
     u32 offset = 0;
-    //u32 pos = 0;
     u32 data;
     u32 prog = 0;
     do {
-//        iprintf("+ send command\n");
         u8 command[8] = {0, 0, 0, 0,
                          offset & 0xff, offset >> 8 & 0xff, offset >> 16 & 0xff,
                          CARD_CMD_HEADER_READ};
@@ -420,29 +345,13 @@ void dump(u16 hwid) {
         command[5] = offset >> 8 & 0xff;
         command[4] = offset & 0xff;
         ak2iCardWriteAndRead(command, 4, 0, &data);
-//        iprintf(" - command end\n");
-        //dest[pos] = data;
         offset += 4;
-        //pos += 1;
         u32 cur = getProgress(offset, 0, 0x20000);
         if (cur != prog && (cur % 5) == 0) {
-//            iprintf("..%lu%%", cur);
             prog = cur;
         }
-//        fwrite(&data, 4, 1, outf);
         iprintf("%lx", data);
     } while (offset != 0x20000);
     printf("\n");
-    //for (u32 addr = 0x80000; addr < 0x1ce000; addr += 1) {
-    //    u32 cur = getProgress(addr, 0x80000, 0x1ce000);
-    //    if (cur != prog && (cur % 5) == 0) {
-    //        iprintf("..%lu%%", cur);
-    //        prog = cur;
-    //    }
-    //    u8* data = (u8*)addr;
-    //    fwrite(data, 1, 1, outf);
-    //}
-    //fwrite("END", 1, 3, outf);
-//    fclose(outf);
     iprintf("\nDone\n");
 }
