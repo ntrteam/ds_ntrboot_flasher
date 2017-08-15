@@ -1,6 +1,6 @@
 #ifndef DELAY_H
 #define DELAY_H
 
-#define ioDelay(...) while(0)
+extern "C" void ioDelay(uint32_t us);
 
 #endif

@@ -5,23 +5,15 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "flashcart_core/device.h"
+#include <flashcart_core/device.h>
+
+#include "console.h"
 #include "binaries.h"
 
 // FIXME: not fully overwrite
 u8 orig_flashrom[0xA0000] = {0};
+u8 curr_flashrom[0xA0000] = {0};
 u8 restorable = 0;
-
-void waitPressA() {
-	iprintf("press <A>\n\n");
-	while(1) {
-		scanKeys();
-		if(keysDown() & KEY_A)
-			break;
-		swiWaitForVBlank();
-	}
-	scanKeys();
-}
 
 Flashcart* waitCartReady() {
     Flashcart *cart = NULL;
@@ -45,18 +37,29 @@ u8 dump(Flashcart *cart) {
     if (length > 0xA0000) {
         length = 0xA0000;
     }
-    iprintf("%d\n", length);
+    iprintf("%X\n", length);
     memset(orig_flashrom, 0, 0xA0000);
     u8 *temp = orig_flashrom;
 
     iprintf("Dump original flashrom\n");
-    //Flashcart::showProgress(0, 1);
+    printProgress(0, 1);
     cart->readFlash(0, length, temp);
     cart->cleanup();
-    //Flashcart::showProgress(1, 1);
+    printProgress(1, 1);
 
     restorable = 1;
     iprintf("\nDone\n\n");
+
+    /*
+    for (int i = 0; i < length; i+=16) {
+        iprintf("%05X:", i);
+        for (int j = 0; j < 16; j++) {
+            iprintf("%02X ", orig_flashrom[i + j]);
+        }
+        iprintf("\n");
+        waitPressA();
+    }
+    */
 
     return 0;
 }
@@ -130,13 +133,22 @@ int inject() {
     u32 firm_size = deviceType ? boot9strap_ntr_dev_firm_size : boot9strap_ntr_firm_size;
 
     iprintf("Flash ntrboothax\n");
-    //Flashcart::showProgress(0, 1);
+    printProgress(0, 1);
     cart->writeBlowfishAndFirm(blowfish_key, firm, firm_size);
     cart->cleanup();
-    //Flashcart::showProgress(1, 1);
+    printProgress(1, 1);
     iprintf("\nDone\n\n");
 
     return 0;
+}
+
+int compareBuf(u8 *buf1, u8 *buf2, u32 len) {
+    for (int i = 0; i < len; i++) {
+        if (buf1[i] != buf2[i]) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 int restore() {
@@ -147,21 +159,60 @@ int restore() {
         return -1;
     }
 
-    iprintf("Restore original flash\n");
-
     u32 length = cart->getMaxLength();
     if (length > 0xA0000) {
         length = 0xA0000;
     }
 
-    // FIXME: it's fully overwrite.
-    // 3ds version use check and flash if that mismatched
-    // how about this?
-    //Flashcart::showProgress(0, 1);
-    cart->writeFlash(0, length, orig_flashrom);
+    memset(curr_flashrom, 0, 0xA0000);
+    u8 *temp = curr_flashrom;
+
+    iprintf("Read current flashrom\n");
+    printProgress(0, 1);
+    cart->readFlash(0, length, temp);
+    printProgress(1, 1);
+
+    iprintf("\nRestore original flash\n");
+
+    const int chunk_size = 64 * 1024;
+    printProgress(0, 1);
+    for (int i = 0; i < length; i += chunk_size) {
+        printProgress(i, length);
+        disablePrintProgress();
+        if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
+            cart->writeFlash(i, chunk_size, orig_flashrom + i);
+        }
+        enablePrintProgress();
+    }
+    printProgress(1, 1);
+
     cart->cleanup();
-    //Flashcart::showProgress(1, 1);
+
+    memset(curr_flashrom, 0, 0xA0000);
+    temp = curr_flashrom;
+
+    iprintf("Reload current flashrom\n");
+    printProgress(0, 1);
+    cart->readFlash(0, length, temp);
+    printProgress(1, 1);
+
+    iprintf("\nVerify...\n");
+
+    printProgress(0, 1);
+    for (int i = 0; i < length; i += chunk_size) {
+        printProgress(i, length);
+        if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
+            iprintf("\nfail");
+            goto exit;
+        }
+    }
+    printProgress(1, 1);
+    iprintf("\nok");
+
+exit:
+    cart->cleanup();
     iprintf("\nDone\n\n");
+
 
     // TODO verify check
     return 0;
@@ -188,7 +239,7 @@ int main(void) {
         iprintf("You can swap flashcart for flash\n");
         iprintf("X. load flashrom\n");
         iprintf("A. inject ntrboothax\n");
-//        iprintf("Y. restore flashrom\n");
+        iprintf("Y. restore flashrom\n");
         iprintf("B. exit\n\n");
 
         while (true) {
@@ -201,9 +252,9 @@ int main(void) {
             } else if (keys & KEY_X) {
                 load();
                 break;
-//            } else if (keys & KEY_Y) {
-//                restore();
-//                break;
+            } else if (keys & KEY_Y) {
+                restore();
+                break;
             } else if (keys & KEY_B) {
                 return 0;
             }

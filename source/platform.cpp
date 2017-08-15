@@ -1,8 +1,8 @@
 #include <nds.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <flashcart_core/device.h>
+
+#include "flashcart_core/device.h"
+#include "console.h"
 
 void Flashcart::platformInit() {
     // TODO
@@ -36,8 +36,7 @@ void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_
             break;
     }
 
-    /*
-    switch(command[0]) {
+    switch (cmdbuf[0]) {
         case 0xB7:
             defaultFlags |= CARD_DELAY1(2);
             break;
@@ -50,7 +49,6 @@ void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_
             defaultFlags |= CARD_DELAY1(20);
             break;
     }
-    */
 
     // NDSL only
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
@@ -62,14 +60,6 @@ void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_
     return;
 }
 
-int percent(int c, int t) {
-    return c * 100 / t;
-}
-
 void Flashcart::showProgress(uint32_t curr, uint32_t total) {
-    static int old = 100;
-    int pct = percent(curr, total);
-    if (pct % 5 == 0 && old != pct);
-    iprintf("\r                       %3d%%", pct);
-    old = pct;
+    printProgress(curr, total);
 }
