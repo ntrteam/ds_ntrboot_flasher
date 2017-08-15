@@ -191,7 +191,7 @@ int restore() {
     memset(curr_flashrom, 0, 0xA0000);
     temp = curr_flashrom;
 
-    iprintf("Reload current flashrom\n");
+    iprintf("\nReload current flashrom\n");
     printProgress(0, 1);
     cart->readFlash(0, length, temp);
     printProgress(1, 1);

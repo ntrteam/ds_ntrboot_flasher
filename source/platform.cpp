@@ -37,6 +37,9 @@ void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_
     }
 
     switch (cmdbuf[0]) {
+        case 0xA5:
+            defaultFlags |= CARD_DELAY1(20);
+            break;
         case 0xB7:
             defaultFlags |= CARD_DELAY1(2);
             break;
