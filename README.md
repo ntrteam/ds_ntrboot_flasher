@@ -1,19 +1,7 @@
 ## NDS version NTRBOOTHAX flasher
-Only tested NDSL + AK2I
+Only tested NDSL + AK2I & R4i Gold
 
 DO NOT USE THIS ON NDSI
-
-### Known issues
-* Probably cannot use with non AK2I cart.
-
-  We should make NDSI mode instead NDS. But that mode cannot use cartridge
-  swap, and probably lost flashcart feature until someone provide restore
-  image.
-
-* Removed restore feature, I don't know reason, flasher occur cartridge brick.
-
-  But, AK2I will work as flashcart whenever flashed or not.
-  So, just feature blocked.
 
 ### Build
 1. copy these 4 binaries to `binaries` directory.

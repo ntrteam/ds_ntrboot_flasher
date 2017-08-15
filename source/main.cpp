@@ -18,9 +18,8 @@ u8 restorable = 0;
 Flashcart* waitCartReady() {
     Flashcart *cart = NULL;
     do {
-        iprintf("Please eject & reinsert cartridge.\n");
-        iprintf("If you use non AK2i cart,\n");
-        iprintf("remove SDCARD from your cartridge.\n");
+        iprintf("Please eject and remove SDCARD\n");
+        iprintf("Then reinsert cartridge.\n");
         waitPressA();
 
         iprintf("ChipID: %08X\n", Flashcart::getChipID());
