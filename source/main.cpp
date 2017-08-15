@@ -40,18 +40,6 @@ Flashcart* waitCartReady() {
     return cart;
 }
 
-int percent(int c, int t) {
-    return c * 100 / t;
-}
-
-void ShowProgress(char screen, uint32_t curr, uint32_t total) {
-    static int old = 100;
-    int pct = percent(curr, total);
-    if (pct % 5 == 0 && old != pct);
-    iprintf("\r                       %3d%%", pct);
-    old = pct;
-}
-
 u8 dump(Flashcart *cart) {
     u32 length = cart->getMaxLength();
     if (length > 0xA0000) {
@@ -62,10 +50,10 @@ u8 dump(Flashcart *cart) {
     u8 *temp = orig_flashrom;
 
     iprintf("Dump original flashrom\n");
-    ShowProgress(0, 0, 1);
+    //Flashcart::showProgress(0, 1);
     cart->readFlash(0, length, temp);
     cart->cleanup();
-    ShowProgress(0, 1, 1);
+    //Flashcart::showProgress(1, 1);
 
     restorable = 1;
     iprintf("\nDone\n\n");
@@ -142,10 +130,10 @@ int inject() {
     u32 firm_size = deviceType ? boot9strap_ntr_dev_firm_size : boot9strap_ntr_firm_size;
 
     iprintf("Flash ntrboothax\n");
-    ShowProgress(0, 0, 1);
+    //Flashcart::showProgress(0, 1);
     cart->writeBlowfishAndFirm(blowfish_key, firm, firm_size);
     cart->cleanup();
-    ShowProgress(0, 1, 1);
+    //Flashcart::showProgress(1, 1);
     iprintf("\nDone\n\n");
 
     return 0;
@@ -169,10 +157,10 @@ int restore() {
     // FIXME: it's fully overwrite.
     // 3ds version use check and flash if that mismatched
     // how about this?
-    ShowProgress(0, 0, 1);
+    //Flashcart::showProgress(0, 1);
     cart->writeFlash(0, length, orig_flashrom);
-    ShowProgress(0, 1, 1);
     cart->cleanup();
+    //Flashcart::showProgress(1, 1);
     iprintf("\nDone\n\n");
 
     // TODO verify check

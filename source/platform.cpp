@@ -2,19 +2,20 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
-#include "gamecart/protocol_ntr.h"
+#include <flashcart_core/device.h>
 
-void Cart_NTRInit() {
+void Flashcart::platformInit() {
+    // TODO
 }
 
-void NTR_SendCommand(const u8 *command, u32 length, u32 unk, u8 *destination) {
+void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp) {
     u8 reversed[8];
     for (int i = 0; i < 8; i++) {
-        reversed[7 - i] = command[i];
+        reversed[7 - i] = cmdbuf[i];
     }
 
     u32 defaultFlags;
-    switch (length & 0xfffffffc) {
+    switch (response_len & 0xfffffffc) {
         case 0:
             defaultFlags = 0;
             break;
@@ -53,10 +54,22 @@ void NTR_SendCommand(const u8 *command, u32 length, u32 unk, u8 *destination) {
 
     // NDSL only
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
-                       (u32*)destination, length, reversed);
+                       (u32*)resp, response_len, reversed);
     // NDSL, DSLi, etc...
     //cardPolledTransfer(flags | defaultFlags | CARD_ACTIVATE | CARD_nRESET |
     //                       CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT,
     //                   destination, length, command);
     return;
+}
+
+int percent(int c, int t) {
+    return c * 100 / t;
+}
+
+void Flashcart::showProgress(uint32_t curr, uint32_t total) {
+    static int old = 100;
+    int pct = percent(curr, total);
+    if (pct % 5 == 0 && old != pct);
+    iprintf("\r                       %3d%%", pct);
+    old = pct;
 }
