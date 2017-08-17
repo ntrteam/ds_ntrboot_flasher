@@ -34,6 +34,17 @@ CFLAGS	:=	-g -Wall -O2\
 CFLAGS	+=	$(INCLUDE) -DARM9
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
+ifneq ($(strip $(DEBUG_DUMP)),)
+	CFLAGS += -DDEBUG_DUMP=$(DEBUG_DUMP)
+	CXXFLAGS += -DDEBUG_DUMP=$(DEBUG_DUMP)
+endif
+
+ifneq ($(strip $(NDSI_MODE)),)
+	CFLAGS += -DNDSI_MODE
+	CXXFLAGS += -DNDSI_MODE
+	TARGET := $(TARGET)_dsi
+endif
+
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
@@ -101,7 +112,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds
+	@rm -fr $(BUILD) $(TARGET)*.elf $(TARGET)*.nds
 
 #---------------------------------------------------------------------------------
 else

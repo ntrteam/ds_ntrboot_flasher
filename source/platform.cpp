@@ -53,13 +53,16 @@ void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_
             break;
     }
 
+#ifndef NDSI_MODE
     // NDSL only
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
                        (u32*)resp, response_len, reversed);
+#else
     // NDSL, DSLi, etc...
-    //cardPolledTransfer(flags | defaultFlags | CARD_ACTIVATE | CARD_nRESET |
-    //                       CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT,
-    //                   destination, length, command);
+    cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET |
+                       CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT,
+                       (u32*)resp, response_len, reversed);
+#endif
     return;
 }
 

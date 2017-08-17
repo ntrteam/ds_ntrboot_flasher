@@ -13,20 +13,35 @@
 // FIXME: not fully overwrite
 u8 orig_flashrom[0xA0000] = {0};
 u8 curr_flashrom[0xA0000] = {0};
+
+#ifndef NDSI_MODE
 u8 restorable = 0;
+#else
+// NDSI mode cannot restore
+u8 restorable = 1;
+#endif
 
 Flashcart* waitCartReady() {
     Flashcart *cart = NULL;
+#ifndef NDSI_MODE
     do {
         iprintf("Please eject and remove SDCARD\n");
         iprintf("Then reinsert cartridge.\n");
         waitPressA();
-
+#endif
         iprintf("ChipID: %08X\n", Flashcart::getChipID());
         iprintf("HW Rev: %08X\n", Flashcart::getHardwareVersion());
 
         cart = Flashcart::detectCart();
+#ifndef NDSI_MODE
     } while(!cart);
+#else
+    if (!cart) {
+        // cannot continue anymore.
+        iprintf("Supported cartridge not detected!\n");
+        while (true) swiWaitForVBlank();
+    }
+#endif
 
     iprintf("Detected: %s\n\n", cart->getDescription());
 
@@ -38,7 +53,6 @@ u8 dump(Flashcart *cart) {
     if (length > 0xA0000) {
         length = 0xA0000;
     }
-    iprintf("%X\n", length);
     memset(orig_flashrom, 0, 0xA0000);
     u8 *temp = orig_flashrom;
 
@@ -51,17 +65,20 @@ u8 dump(Flashcart *cart) {
     restorable = 1;
     iprintf("\nDone\n\n");
 
-    /*
+#if defined(DEBUG_DUMP)
     for (int i = 0; i < length; i+=16) {
         iprintf("%05X:", i);
         for (int j = 0; j < 16; j++) {
-            iprintf("%02X ", orig_flashrom[i + j]);
+            iprintf("%02X", orig_flashrom[i + j]);
         }
         iprintf("\n");
+#if DEBUG_DUMP == 2
         waitPressA();
+#else
+        break;
+#endif
     }
-    */
-
+#endif
     return 0;
 }
 
@@ -213,9 +230,6 @@ int restore() {
 exit:
     cart->cleanup();
     iprintf("\nDone\n\n");
-
-
-    // TODO verify check
     return 0;
 }
 
@@ -225,22 +239,32 @@ int main(void) {
 
     sysSetBusOwners(true, true); // give ARM9 access to the cart
 
-    iprintf("= AK2I NTRBOOTHAX FLASHER =\n\n");
+    iprintf("=   NDS NTRBOOT FLASHER   =\n\n");
 
     iprintf("* if you use non ak2i     *\n");
     iprintf("* you will lost flashcart *\n");
     iprintf("* feature.                *\n");
+#ifndef NDSI_MODE
     iprintf("* DO NOT CLOSE THIS APP   *\n");
     iprintf("* IF YOU DONT HAVE SAME   *\n");
     iprintf("* FLASHCART               *\n");
+#else
+    iprintf("* WARN: ONLY TESTED WITH  *\n");
+    iprintf("* 3DS DEVICE.             *\n");
+#endif
+    iprintf("* AT YOUR OWN RISK        *\n");
 
     waitPressA();
 
     while (true) {
+#ifndef NDSI_MODE
         iprintf("You can swap flashcart for flash\n");
         iprintf("X. load flashrom\n");
+#endif
         iprintf("A. inject ntrboothax\n");
+#ifndef NDSI_MODE
         iprintf("Y. restore flashrom\n");
+#endif
         iprintf("B. exit\n\n");
 
         while (true) {
@@ -250,12 +274,14 @@ int main(void) {
             if (keys & KEY_A) {
                 inject();
                 break;
+#ifndef NDSI_MODE
             } else if (keys & KEY_X) {
                 load();
                 break;
             } else if (keys & KEY_Y) {
                 restore();
                 break;
+#endif
             } else if (keys & KEY_B) {
                 return 0;
             }

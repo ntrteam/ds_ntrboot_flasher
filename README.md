@@ -12,6 +12,15 @@ DO NOT USE THIS ON NDSI
 2. `python extract_binaries.py`
 3. then `make`
 
+#### Special `make` options
+* `NDSI_MODE=1`
+  - build nds compatible mode
+  - remove cart swap and load & restore command
+* `DEBUG_DUMP=1`
+  - print first 16bytes at load
+* `DEBUG_DUMP=2`
+  - print all dumps
+
 ### Credits
 * [Normmatt][normmatt] - Original implement 3DS version ntrcardhax flasher
 * [SciresM][sciresm] - Parent of `boot9strap`
