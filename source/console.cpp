@@ -27,14 +27,20 @@ void enablePrintProgress() {
     printProgressFlag = 1;
 }
 
-void printProgress(uint32_t curr, uint32_t total) {
+void printProgress(const char *string, uint32_t curr, uint32_t total) {
     static int old = 100;
     if (!printProgressFlag) {
         return;
     }
     int pct = percent(curr, total);
     if (pct % 5 == 0 && old != pct);
-    iprintf("\r                       %3d%%", pct);
+    int space = 27 - strlen(string);
+    iprintf("\r");
+    iprintf(string);
+    while (space--) {
+        iprintf(" ");
+    }
+    iprintf("%3d%%", pct);
     old = pct;
 }
 

@@ -5,50 +5,103 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <flashcart_core/device.h>
+#include "device.h"
 
 #include "console.h"
 #include "binaries.h"
+#include "platform.h"
 
 // FIXME: not fully overwrite
 u8 orig_flashrom[0xA0000] = {0};
 u8 curr_flashrom[0xA0000] = {0};
 
-#ifndef NDSI_MODE
-u8 restorable = 0;
-#else
-// NDSI mode cannot restore
-u8 restorable = 1;
-#endif
+PrintConsole topScreen;
+PrintConsole bottomScreen;
 
-Flashcart* waitCartReady() {
-    Flashcart *cart = NULL;
-#ifndef NDSI_MODE
-    do {
-        iprintf("Please eject and remove SDCARD\n");
-        iprintf("Then reinsert cartridge.\n");
-        waitPressA();
-#endif
-        iprintf("ChipID: %08X\n", Flashcart::getChipID());
-        iprintf("HW Rev: %08X\n", Flashcart::getHardwareVersion());
+void printWarning() {
+    consoleSelect(&topScreen);
 
-        cart = Flashcart::detectCart();
+    iprintf("=   NDS NTRBOOT FLASHER   =\n\n");
+
+    consoleSelect(&bottomScreen);
+
+    iprintf("* if you use non ak2i     *\n");
+    iprintf("* you will lost flashcart *\n");
+    iprintf("* feature.                *\n");
 #ifndef NDSI_MODE
-    } while(!cart);
+    iprintf("* DO NOT CLOSE THIS APP   *\n");
+    iprintf("* IF YOU DONT HAVE SAME   *\n");
+    iprintf("* FLASHCART               *\n");
 #else
-    if (!cart) {
-        // cannot continue anymore.
-        iprintf("Supported cartridge not detected!\n");
-        while (true) swiWaitForVBlank();
+    iprintf("* WARN: ONLY TESTED WITH  *\n");
+    iprintf("* 3DS DEVICE.             *\n");
+#endif
+    iprintf("* AT YOUR OWN RISK        *\n");
+
+    waitPressA();
+    consoleClear();
+}
+
+Flashcart* selectCart() {
+    uint32_t idx = 0;
+
+    consoleSelect(&bottomScreen);
+    consoleClear();
+#ifndef NDSI_MODE
+    iprintf("Please eject and remove SDCARD\n");
+    iprintf("Then reinsert cartridge.\n\n");
+#else
+    iprintf("NDSi can't support hotswap\n");
+    iprintf("You can lost flashcart feature.\n\n");
+#endif
+    iprintf("<UP/DOWN> Select flashcart\n");
+    iprintf("<A> Confirm\n");
+#ifndef NDSI_MODE
+    iprintf("<B> Cancel");
+#else
+    iprintf("<B> Exit");
+#endif
+    while (true) {
+        consoleSelect(&topScreen);
+        consoleClear();
+        Flashcart *cart = flashcart_list->at(idx);
+        iprintf("Flashcart: %s\n", cart->getName());
+        //iprintf("    - %s\n", cart->getAuthor());
+        iprintf("\n%s", cart->getDescription());
+
+        while (true) {
+            scanKeys();
+            uint32_t keys = keysDown();
+            if (keys & KEY_UP) {
+                if (idx > 0) {
+                    idx--;
+                }
+                break;
+            }
+            if (keys & KEY_DOWN) {
+                idx++;
+                if (idx >= flashcart_list->size()) {
+                    idx = flashcart_list->size() - 1;
+                }
+                break;
+            }
+            if (keys & KEY_A) {
+                return cart;
+            }
+            if (keys & KEY_B) {
+                return NULL;
+            }
+            swiWaitForVBlank();
+        }
     }
-#endif
-
-    iprintf("Detected: %s\n\n", cart->getDescription());
-
-    return cart;
 }
 
 u8 dump(Flashcart *cart) {
+    consoleSelect(&bottomScreen);
+    consoleClear();
+    iprintf("Preload original firmware\n");
+
+    // FIXME: we need to check flashcart's data position
     u32 length = cart->getMaxLength();
     if (length > 0xA0000) {
         length = 0xA0000;
@@ -56,14 +109,7 @@ u8 dump(Flashcart *cart) {
     memset(orig_flashrom, 0, 0xA0000);
     u8 *temp = orig_flashrom;
 
-    iprintf("Dump original flashrom\n");
-    printProgress(0, 1);
     cart->readFlash(0, length, temp);
-    cart->cleanup();
-    printProgress(1, 1);
-
-    restorable = 1;
-    iprintf("\nDone\n\n");
 
 #if defined(DEBUG_DUMP)
     for (int i = 0; i < length; i+=16) {
@@ -83,65 +129,32 @@ u8 dump(Flashcart *cart) {
 }
 
 int8_t selectDeviceType() {
-    iprintf("Use arrow keys\nand <A> to choose device type\n");
+    consoleSelect(&bottomScreen);
+    consoleClear();
 
-    u8 is_dev = 0;
+    iprintf("Select 3DS device type\n\n");
+    iprintf("<A> RETAIL\n");
+    iprintf("<X> DEV\n");
+    iprintf("<B> Cancel");
+
     while (true) {
-        iprintf("\r%s", is_dev ? "DEV   " : "RETAIL");
-
         scanKeys();
         u32 keys = keysDown();
-        if (keys & (KEY_UP | KEY_DOWN)) {
-            is_dev = (is_dev + 1) & 1;
-        } else if (keys & KEY_A) {
-            iprintf("\n\n");
-            return is_dev;
-        } else if (keys & KEY_B) {
-            iprintf("\r(cancelled by user)\n\n");
+        if (keys & KEY_A) {
+            return 0;
+        }
+        if (keys & KEY_X) {
+            return 1;
+        }
+        if (keys & KEY_B) {
             return -1;
         }
         swiWaitForVBlank();
     }
 }
 
-int load() {
-    if (restorable) {
-        iprintf("already loaded original rom\n");
-        iprintf("you will lost this data\n");
-        iprintf("and you can lost restore chance\n");
-        iprintf("Y. continue\n");
-        iprintf("A. cancel\n");
-
-        while (true) {
-            scanKeys();
-            u32 keys = keysDown();
-
-            if (keys & KEY_A) {
-                return -1;
-            } else if (keys & KEY_Y) {
-                break;
-            }
-            swiWaitForVBlank();
-        }
-    }
-
-    Flashcart *cart = waitCartReady();
-    return dump(cart);
-}
-
-int inject() {
-    if (!restorable) {
-        iprintf("you haven't load firmware\n");
-        iprintf("it can make to lost flashcart\n");
-        iprintf("feature\n");
-        iprintf("please load first\n");
-        waitPressA();
-        return -1;
-    }
-
-    Flashcart *cart = waitCartReady();
-
-    u8 deviceType = selectDeviceType();
+int inject(Flashcart *cart) {
+    int8_t deviceType = selectDeviceType();
     if (deviceType < 0) {
         return -1;
     }
@@ -150,18 +163,19 @@ int inject() {
     u8 *firm = deviceType ? boot9strap_ntr_dev_firm : boot9strap_ntr_firm;
     u32 firm_size = deviceType ? boot9strap_ntr_dev_firm_size : boot9strap_ntr_firm_size;
 
+    consoleSelect(&bottomScreen);
+    consoleClear();
+
     iprintf("Flash ntrboothax\n");
-    printProgress(0, 1);
-    cart->writeBlowfishAndFirm(blowfish_key, firm, firm_size);
-    cart->cleanup();
-    printProgress(1, 1);
+    cart->injectNtrBoot(blowfish_key, firm, firm_size);
     iprintf("\nDone\n\n");
 
+    waitPressA();
     return 0;
 }
 
 int compareBuf(u8 *buf1, u8 *buf2, u32 len) {
-    for (int i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++) {
         if (buf1[i] != buf2[i]) {
             return 0;
         }
@@ -169,14 +183,7 @@ int compareBuf(u8 *buf1, u8 *buf2, u32 len) {
     return 1;
 }
 
-int restore() {
-    Flashcart *cart = waitCartReady();
-
-    if (!restorable) {
-        iprintf("Not loaded original flashrom\n");
-        return -1;
-    }
-
+int restore(Flashcart *cart) {
     u32 length = cart->getMaxLength();
     if (length > 0xA0000) {
         length = 0xA0000;
@@ -185,106 +192,165 @@ int restore() {
     memset(curr_flashrom, 0, 0xA0000);
     u8 *temp = curr_flashrom;
 
-    iprintf("Read current flashrom\n");
-    printProgress(0, 1);
-    cart->readFlash(0, length, temp);
-    printProgress(1, 1);
+    consoleSelect(&bottomScreen);
+    consoleClear();
 
-    iprintf("\nRestore original flash\n");
+    iprintf("Read current flashrom\n");
+    cart->readFlash(0, length, temp);
+
+    iprintf("\n\nRestore original flash\n");
 
     const int chunk_size = 64 * 1024;
-    printProgress(0, 1);
-    for (int i = 0; i < length; i += chunk_size) {
-        printProgress(i, length);
-        disablePrintProgress();
+    int chunk = 0;
+    disablePrintProgress();
+    for (uint32_t i = 0; i < length; i += chunk_size) {
         if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
+            iprintf("\rWriting chunk          %08X", chunk);
             cart->writeFlash(i, chunk_size, orig_flashrom + i);
         }
-        enablePrintProgress();
+        chunk += 1;
     }
-    printProgress(1, 1);
-
-    cart->cleanup();
+    enablePrintProgress();
 
     memset(curr_flashrom, 0, 0xA0000);
     temp = curr_flashrom;
 
-    iprintf("\nReload current flashrom\n");
-    printProgress(0, 1);
+    iprintf("\n\nReload current flashrom\n");
     cart->readFlash(0, length, temp);
-    printProgress(1, 1);
 
-    iprintf("\nVerify...\n");
+    iprintf("\n\nVerify...  ");
 
-    printProgress(0, 1);
-    for (int i = 0; i < length; i += chunk_size) {
-        printProgress(i, length);
+    for (uint32_t i = 0; i < length; i += chunk_size) {
         if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
-            iprintf("\nfail");
+            iprintf("fail");
             goto exit;
         }
     }
-    printProgress(1, 1);
-    iprintf("\nok");
+    iprintf("ok");
 
 exit:
-    cart->cleanup();
     iprintf("\nDone\n\n");
-    return 0;
-}
-
-int main(void) {
-
-    consoleDemoInit();
-
-    sysSetBusOwners(true, true); // give ARM9 access to the cart
-
-    iprintf("=   NDS NTRBOOT FLASHER   =\n\n");
-
-    iprintf("* if you use non ak2i     *\n");
-    iprintf("* you will lost flashcart *\n");
-    iprintf("* feature.                *\n");
-#ifndef NDSI_MODE
-    iprintf("* DO NOT CLOSE THIS APP   *\n");
-    iprintf("* IF YOU DONT HAVE SAME   *\n");
-    iprintf("* FLASHCART               *\n");
-#else
-    iprintf("* WARN: ONLY TESTED WITH  *\n");
-    iprintf("* 3DS DEVICE.             *\n");
-#endif
-    iprintf("* AT YOUR OWN RISK        *\n");
 
     waitPressA();
 
+    return 0;
+}
+
+int recheckCart(Flashcart *cart) {
+    cart->shutdown();
+    reset();
+
+    if (cart->initialize()) {
+        return true;
+    }
+    consoleSelect(&bottomScreen);
+    consoleClear();
+    iprintf("flashcart\n");
+    waitPressA();
+    return false;
+}
+
+int waitConfirmLostDump() {
+    consoleSelect(&bottomScreen);
+    consoleClear();
+    iprintf("Will lost original cart firm\n\n");
+    iprintf("<Y> Continue\n");
+    iprintf("<B> Cancel\n");
+
     while (true) {
-#ifndef NDSI_MODE
-        iprintf("You can swap flashcart for flash\n");
-        iprintf("X. load flashrom\n");
+        scanKeys();
+        u32 keys = keysDown();
+
+        if (keys & KEY_Y) {
+            return 1;
+        }
+        if (keys & KEY_B) {
+            return 0;
+        }
+        swiWaitForVBlank();
+    }
+}
+
+int main(void) {
+    videoSetMode(MODE_0_2D);
+	videoSetModeSub(MODE_0_2D);
+
+	vramSetBankA(VRAM_A_MAIN_BG);
+	vramSetBankC(VRAM_C_SUB_BG);
+
+    consoleInit(&topScreen, 3,BgType_Text4bpp, BgSize_T_256x256, 31, 0, true, true);
+	consoleInit(&bottomScreen, 3,BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
+
+    sysSetBusOwners(true, true); // give ARM9 access to the cart
+
+    printWarning();
+
+    Flashcart *cart;
+
+select_cart:
+    cart = NULL;
+    while (true) {
+        cart = selectCart();
+        if (cart == NULL) {
+#ifdef NDSI_MODE
+            return 0;
 #endif
-        iprintf("A. inject ntrboothax\n");
+        }
+        reset();
+        if (cart->initialize()) {
+            break;
+        }
+        consoleSelect(&bottomScreen);
+        consoleClear();
+        iprintf("Flashcart setup failed\n");
+        waitPressA();
+    }
+
+
 #ifndef NDSI_MODE
-        iprintf("Y. restore flashrom\n");
+    dump(cart);
 #endif
-        iprintf("B. exit\n\n");
+
+    while (true) {
+flash_menu:
+        consoleSelect(&bottomScreen);
+        consoleClear();
+        iprintf("<A> Inject ntrboothax\n");
+#ifndef NDSI_MODE
+        iprintf("<X> Restore ntrboothax\n");
+        iprintf("<B> Return\n");
+#else
+        iprintf("<B> Exit\n");
+#endif
 
         while (true) {
             scanKeys();
             u32 keys = keysDown();
 
             if (keys & KEY_A) {
-                inject();
+                if (recheckCart(cart)) {
+                    inject(cart);
+                }
                 break;
+            }
 #ifndef NDSI_MODE
-            } else if (keys & KEY_X) {
-                load();
+            if (keys & KEY_X) {
+                if (recheckCart(cart)) {
+                    restore(cart);
+                }
                 break;
-            } else if (keys & KEY_Y) {
-                restore();
-                break;
-#endif
-            } else if (keys & KEY_B) {
+            }
+            if (keys & KEY_B) {
+                if (waitConfirmLostDump()) {
+                    goto select_cart;
+                }
+                goto flash_menu;
+            }
+#else
+            if (keys & KEY_B) {
                 return 0;
             }
+#endif
             swiWaitForVBlank();
         }
     }
