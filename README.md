@@ -1,8 +1,6 @@
 ## NDS version NTRBOOTHAX flasher
 Only tested NDSL + AK2I & R4i Gold
 
-DO NOT USE THIS ON NDSI
-
 ### Build
 1. copy these 4 binaries to `binaries` directory.
   - `blowfish_dev.bin`
@@ -26,6 +24,7 @@ DO NOT USE THIS ON NDSI
 * [SciresM][sciresm] - Parent of `boot9strap`
 * [kitling][kitling] - Made `flashcart_core`
 * [hedgeberg][hedgeberg] - RE Cartridge
+* [HandsomeMatt][HandsomeMatt] - RE Cartridge
 * And other talented hackers
 
 [normmatt]: https://github.com/Normmatt
