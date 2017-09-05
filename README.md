@@ -31,3 +31,4 @@ Only tested NDSL + AK2I & R4i Gold
 [sciresm]: https://twitter.com/SciresM
 [kitling]: https://github.com/kitling
 [hedgeberg]: https://github.com/hedgeberg
+[HandsomeMatt]: https://github.com/HandsomeMatt
