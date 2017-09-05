@@ -19,7 +19,7 @@ TARGET		:=	$(shell basename $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source external/flashcart_core external/flashcart_core/devices
 DATA		:=	data
-INCLUDES	:=	include external
+INCLUDES	:=	include external/flashcart_core
 
 #---------------------------------------------------------------------------------
 # options for code generation
