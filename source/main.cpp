@@ -193,26 +193,26 @@ int dumpntr(Flashcart *cart) {
 	
 	iprintf("Create 'backup.bin'. \n");
 	
-	FILE *firm = fopen("backup.bin","wb");
+	FILE *backup = fopen("backup.bin","wb");
 	
-	u32 firm_size = 0x400000;
+	u32 backup_size = 0x400000;
 	u32 address_max = 0x10000;//0x200
-	uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
+	uint8_t *buffer = (uint8_t *)malloc(0x10000);
 	
-	for(u32 i = 0; i < firm_size; i+=address_max)
+	for(u32 i = 0; i < backup_size; i+=address_max)
 	{
 		//if(cart->r4i_read(chunk0, address + i) == false){  //Class Private: :-(
-		if(cart->readFlash(i, 0x10000, chunk0) == false){
+		if(cart->readFlash(i, 0x10000, buffer) == false){
 			iprintf("flashrom read error");
 		}
 		
-		if(fwrite(chunk0, 1, 0x10000, firm) < 0x10000){
+		if(fwrite(buffer, 1, 0x10000, backup) < 0x10000){
 			iprintf("sdmc write error");
 		}
 	}
 	
-	free(chunk0);
-	fclose(firm);
+	free(buffer);
+	fclose(backup);
 	iprintf("\nDone !\n\n");
 	waitPressA();
 	return 0;
