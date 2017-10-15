@@ -109,7 +109,9 @@ u8 dump(Flashcart *cart) {
     memset(orig_flashrom, 0, 0xA0000);
     u8 *temp = orig_flashrom;
 
-    cart->readFlash(0, length, temp);
+    if (!cart->readFlash(0, length, temp)) {
+        return 1;
+    }
 
 #if defined(DEBUG_DUMP)
     for (int i = 0; i < length; i+=16) {
@@ -308,7 +310,11 @@ select_cart:
 
 
 #ifndef NDSI_MODE
-    dump(cart);
+    if (dump(cart)) {
+        iprintf("Flashcart load failed\n");
+        waitPressA();
+        goto select_cart;
+    }
 #endif
 
     while (true) {
