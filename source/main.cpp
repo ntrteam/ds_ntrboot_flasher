@@ -9,7 +9,9 @@
 
 #include "console.h"
 #include "binaries.h"
-#include "platform.h"
+#include "nds_platform.h"
+
+using namespace flashcart_core;
 
 // FIXME: not fully overwrite
 u8 orig_flashrom[0xA0000] = {0};

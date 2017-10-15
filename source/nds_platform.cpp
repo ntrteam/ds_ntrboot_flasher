@@ -2,9 +2,14 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "device.h"
-#include "console.h"
 #include "platform.h"
+#include "console.h"
+#include "ntrcard.h"
+#include "delay.h"
+#include "nds_platform.h"
+
+using namespace std;
+using namespace flashcart_core;
 
 void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
     u8 reversed[8];
@@ -46,12 +51,25 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
 #endif
 }
 
-void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
-    _sendCommand(cmdbuf, response_len, resp, flags);
+bool platform::sendCommand(const std::uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, ntrcard::OpFlags flags) {
+    _sendCommand(cmdbuf, response_len, resp, flags.pack());
+    return true;
 }
 
-void Flashcart::showProgress(uint32_t curr, uint32_t total, const char *status_string) {
+void platform::showProgress(uint32_t curr, uint32_t total, const char *status_string) {
     printProgress(status_string, curr, total);
+}
+
+void platform::ioDelay(unsigned long delay) {
+    ioDelay(delay);
+}
+
+int32_t platform::resetCard() {
+    reset();
+    return 0;
+}
+
+void platform::initBlowfishPS(std::uint32_t (&ps)[ntrcard::BLOWFISH_PS_N]) {
 }
 
 #ifdef DEBUG_PRINT
@@ -68,6 +86,7 @@ int Flashcart::logMessage(log_priority priority, const char *fmt, ...) {
 
 const uint8_t dummyCommand[8] = {0x9F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const uint8_t chipIDCommand[8] = {0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 void reset() {
     uint8_t *garbage = (uint8_t*)malloc(sizeof(uint8_t) * 0x2000);
     if (!garbage) {
