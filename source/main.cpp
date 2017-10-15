@@ -178,6 +178,50 @@ int inject(Flashcart *cart) {
     return 0;
 }
 
+#include <fat.h>
+int dumpntr(Flashcart *cart) {
+	
+	consoleSelect(&bottomScreen);
+    consoleClear();
+	
+	iprintf("Dump NTR\n");
+	
+	bool initSD = fatInitDefault();
+    if( !initSD )
+	{
+		iprintf( "init fat %d\n", initSD );
+		iprintf("\nDone !\n\n");
+		waitPressA();
+		return 1;
+	}
+	
+	iprintf("Create 'backup.bin'. \n");
+	
+	FILE *backup = fopen("backup.bin","wb");
+	
+	u32 backup_size = 0x400000;
+	u32 address_max = 0x10000;//0x200
+	uint8_t *buffer = (uint8_t *)malloc(0x10000);
+	
+	for(u32 i = 0; i < backup_size; i+=address_max)
+	{
+		//if(cart->r4i_read(chunk0, address + i) == false){  //Class Private: :-(
+		if(cart->readFlash(i, 0x10000, buffer) == false){
+			iprintf("flashrom read error");
+		}
+		
+		if(fwrite(buffer, 1, 0x10000, backup) < 0x10000){
+			iprintf("sdmc write error");
+		}
+	}
+	
+	free(buffer);
+	fclose(backup);
+	iprintf("\nDone !\n\n");
+	waitPressA();
+	return 0;
+}
+
 int compareBuf(u8 *buf1, u8 *buf2, u32 len) {
     for (uint32_t i = 0; i < len; i++) {
         if (buf1[i] != buf2[i]) {
@@ -328,7 +372,9 @@ select_cart:
 flash_menu:
         consoleSelect(&bottomScreen);
         consoleClear();
-        iprintf("<A> Inject ntrboothax\n");
+		
+		iprintf("<A> Dump NTR\n");
+        iprintf("<Y> Inject ntrboothax\n");
 #ifndef NDSI_MODE
         if (support_restore) {
             iprintf("<X> Restore ntrboothax\n");
@@ -342,9 +388,15 @@ flash_menu:
             scanKeys();
             u32 keys = keysDown();
 
-            if (keys & KEY_A) {
+            if (keys & KEY_Y) {
                 if (recheckCart(cart)) {
                     inject(cart);
+                }
+                break;
+            }
+			if (keys & KEY_A) {
+                if (recheckCart(cart)) {
+                    dumpntr(cart);
                 }
                 break;
             }
