@@ -18,6 +18,8 @@ Only tested NDSL + AK2I & R4i Gold
   - print first 16bytes at load
 * `DEBUG_DUMP=2`
   - print all dumps
+* `DEBUG_PRINT=1`
+  - print flashcart_core's log message
 
 ### Credits
 * [Normmatt][normmatt] - Original implement 3DS version ntrcardhax flasher

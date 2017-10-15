@@ -1,5 +1,6 @@
 #include <nds.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "device.h"
 #include "console.h"
@@ -53,6 +54,17 @@ void Flashcart::showProgress(uint32_t curr, uint32_t total, const char *status_s
     printProgress(status_string, curr, total);
 }
 
+#ifdef DEBUG_PRINT
+int Flashcart::logMessage(log_priority priority, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    iprintf("\n");
+    viprintf(fmt, args);
+    va_end(args);
+
+    return 0;
+}
+#endif
 
 const uint8_t dummyCommand[8] = {0x9F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const uint8_t chipIDCommand[8] = {0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
