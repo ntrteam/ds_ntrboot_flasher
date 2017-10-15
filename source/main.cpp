@@ -308,9 +308,14 @@ select_cart:
         waitPressA();
     }
 
-
 #ifndef NDSI_MODE
-    if (dump(cart)) {
+    bool support_restore = true;
+    if (!strcmp(cart->getName(), "R4iSDHC family")) {
+        iprintf("This cart not support restore\n");
+        support_restore = false;
+    }
+
+    if (support_restore && dump(cart)) {
         iprintf("Flashcart load failed\n");
         waitPressA();
         goto select_cart;
@@ -323,7 +328,9 @@ flash_menu:
         consoleClear();
         iprintf("<A> Inject ntrboothax\n");
 #ifndef NDSI_MODE
-        iprintf("<X> Restore ntrboothax\n");
+        if (support_restore) {
+            iprintf("<X> Restore ntrboothax\n");
+        }
         iprintf("<B> Return\n");
 #else
         iprintf("<B> Exit\n");
@@ -340,14 +347,14 @@ flash_menu:
                 break;
             }
 #ifndef NDSI_MODE
-            if (keys & KEY_X) {
+            if (support_restore && (keys & KEY_X)) {
                 if (recheckCart(cart)) {
                     restore(cart);
                 }
                 break;
             }
             if (keys & KEY_B) {
-                if (waitConfirmLostDump()) {
+                if (support_restore && waitConfirmLostDump()) {
                     goto select_cart;
                 }
                 goto flash_menu;
