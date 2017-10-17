@@ -8,6 +8,10 @@
 #include "delay.h"
 #include "nds_platform.h"
 
+extern uint8_t *blowfish_ntr_bin;
+extern uint8_t *blowfish_retail_bin;
+extern uint8_t *blowfish_dev_bin;
+
 using namespace std;
 using namespace flashcart_core;
 
@@ -51,8 +55,10 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
 #endif
 }
 
-bool platform::sendCommand(const std::uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, ntrcard::OpFlags flags) {
-    _sendCommand(cmdbuf, response_len, resp, flags.pack());
+extern const bool platform::HAS_HW_KEY2 = true;
+
+bool platform::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, ntrcard::OpFlags flags) {
+    _sendCommand(cmdbuf, response_len, resp, flags);
     return true;
 }
 
@@ -70,6 +76,25 @@ int32_t platform::resetCard() {
 }
 
 void platform::initBlowfishPS(uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key) {
+    if (sizeof(ps) != 0x1048) {
+        return;
+    }
+
+    const void *ptr;
+    switch (key) {
+        default: // blah
+        case ntrcard::BlowfishKey::NTR:
+            ptr = blowfish_ntr_bin;
+            break;
+        case ntrcard::BlowfishKey::B9RETAIL:
+            ptr = blowfish_retail_bin;
+            break;
+        case ntrcard::BlowfishKey::B9DEV:
+            ptr = blowfish_dev_bin;
+            break;
+    }
+
+    memcpy(ps, ptr, sizeof(ps));
 }
 
 #ifdef DEBUG_PRINT
