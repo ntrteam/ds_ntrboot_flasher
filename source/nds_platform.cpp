@@ -97,6 +97,22 @@ void platform::initBlowfishPS(uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::B
     memcpy(ps, ptr, sizeof(ps));
 }
 
+void platform::initKey2Seed(std::uint64_t x, std::uint64_t y) {
+    REG_ROMCTRL = 0;
+
+    uint32_t xl = (uint32_t)(x & 0xFFFFFFFF);
+    uint32_t yl = (uint32_t)(y & 0xFFFFFFFF);
+    uint16_t xh = (uint16_t)((x >> 32) & 0x7F);
+    uint16_t yh = (uint16_t)((y >> 32) & 0x7F);
+
+    REG_CARD_1B0 = xl;
+    REG_CARD_1B4 = yl;
+    REG_CARD_1B8 = xh;
+    REG_CARD_1BA = yh;
+
+    REG_ROMCTRL = CARD_nRESET| CARD_SEC_SEED | CARD_SEC_EN | CARD_SEC_DAT;
+}
+
 #ifdef DEBUG_PRINT
 int platform::logMessage(log_priority priority, const char *fmt, ...) {
     va_list args;
