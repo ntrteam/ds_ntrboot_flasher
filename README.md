@@ -2,7 +2,8 @@
 Only tested NDSL + AK2I & R4i Gold
 
 ### Build
-1. copy these 4 binaries to `binaries` directory.
+1. copy these 5 binaries to `binaries` directory.
+  - `blowfish_ntr.bin`
   - `blowfish_dev.bin`
   - `blowfish_retail.bin`
   - `boot9strap_ntr_dev.firm`
