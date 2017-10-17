@@ -69,11 +69,11 @@ int32_t platform::resetCard() {
     return 0;
 }
 
-void platform::initBlowfishPS(std::uint32_t (&ps)[ntrcard::BLOWFISH_PS_N]) {
+void platform::initBlowfishPS(uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key) {
 }
 
 #ifdef DEBUG_PRINT
-int Flashcart::logMessage(log_priority priority, const char *fmt, ...) {
+int platform::logMessage(log_priority priority, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     iprintf("\n");
