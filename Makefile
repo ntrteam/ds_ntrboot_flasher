@@ -39,6 +39,11 @@ ifneq ($(strip $(DEBUG_DUMP)),)
 	CXXFLAGS += -DDEBUG_DUMP=$(DEBUG_DUMP)
 endif
 
+ifneq ($(strip $(DEBUG_PRINT)),)
+	CFLAGS += -DDEBUG_PRINT=$(DEBUG_PRINT)
+	CXXFLAGS += -DDEBUG_PRINT=$(DEBUG_PRINT)
+endif
+
 ifneq ($(strip $(NDSI_MODE)),)
 	CFLAGS += -DNDSI_MODE
 	CXXFLAGS += -DNDSI_MODE
