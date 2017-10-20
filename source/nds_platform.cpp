@@ -15,6 +15,17 @@ extern uint8_t *blowfish_dev_bin;
 using namespace std;
 using namespace flashcart_core;
 
+#ifndef NDSI_MODE
+// NDS/NDSL required key initalize after hotswap
+extern const bool platform::HAS_HW_KEY2 = true;
+extern const bool platform::FORCE_BYPASS_INIT_BLOWFISH = false;
+#else
+// NDSI mode will be already loaded BF key
+extern const bool platform::HAS_HW_KEY2 = false;
+extern const bool platform::FORCE_BYPASS_INIT_BLOWFISH = true;
+bool enabled_secure_flags = true;
+#endif
+
 void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
     u8 reversed[8];
     for (int i = 0; i < 8; i++) {
@@ -43,19 +54,16 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
             break;
     }
 
-#ifndef NDSI_MODE
-    // NDSL only
+#ifdef NDSI_MODE
+    if (enabled_secure_flags) {
+        defaultFlags |= CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT;
+    }
+    platform::logMessage(LOG_DEBUG, "flags %X %X %X %X", defaultFlags, enabled_secure_flags, platform::HAS_HW_KEY2, platform::FORCE_BYPASS_INIT_BLOWFISH);
+#endif
+
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
                        (u32*)resp, response_len, reversed);
-#else
-    // NDSL, DSLi, etc...
-    cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET |
-                       CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT,
-                       (u32*)resp, response_len, reversed);
-#endif
 }
-
-extern const bool platform::HAS_HW_KEY2 = true;
 
 bool platform::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, ntrcard::OpFlags flags) {
     _sendCommand(cmdbuf, response_len, resp, flags);
@@ -74,6 +82,16 @@ int32_t platform::resetCard() {
     reset();
     return 0;
 }
+
+#ifdef NDSI_MODE
+void platform::enableSecureFlags() {
+    enabled_secure_flags = true;
+}
+
+void platform::disableSecureFlags() {
+    enabled_secure_flags = false;
+}
+#endif
 
 void platform::initBlowfishPS(uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key) {
     if (sizeof(ps) != 0x1048) {

@@ -240,20 +240,6 @@ exit:
     return 0;
 }
 
-int recheckCart(Flashcart *cart) {
-    cart->shutdown();
-    reset();
-
-    if (cart->initialize()) {
-        return true;
-    }
-    consoleSelect(&bottomScreen);
-    consoleClear();
-    iprintf("flashcart\n");
-    waitPressA();
-    return false;
-}
-
 int waitConfirmLostDump() {
     consoleSelect(&bottomScreen);
     consoleClear();
@@ -310,6 +296,10 @@ select_cart:
         waitPressA();
     }
 
+    iprintf("FLASHCART INITIALIZE FINISHED!!!\n");
+    waitPressA();
+    return 0;
+
 #ifndef NDSI_MODE
     bool support_restore = true;
     if (!strcmp(cart->getName(), "R4iSDHC family")) {
@@ -328,6 +318,7 @@ select_cart:
 flash_menu:
         consoleSelect(&bottomScreen);
         consoleClear();
+        iprintf("DO NOT EJECT FLASHCART\n\n");
         iprintf("<A> Inject ntrboothax\n");
 #ifndef NDSI_MODE
         if (support_restore) {
@@ -343,26 +334,24 @@ flash_menu:
             u32 keys = keysDown();
 
             if (keys & KEY_A) {
-                if (recheckCart(cart)) {
-                    inject(cart);
-                }
+                inject(cart);
                 break;
             }
 #ifndef NDSI_MODE
             if (support_restore && (keys & KEY_X)) {
-                if (recheckCart(cart)) {
-                    restore(cart);
-                }
+                restore(cart);
                 break;
             }
             if (keys & KEY_B) {
                 if (support_restore && waitConfirmLostDump()) {
+                    cart->shutdown();
                     goto select_cart;
                 }
                 goto flash_menu;
             }
 #else
             if (keys & KEY_B) {
+                cart->shutdown();
                 return 0;
             }
 #endif
