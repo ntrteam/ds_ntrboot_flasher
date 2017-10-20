@@ -127,13 +127,15 @@ int platform::logMessage(log_priority priority, const char *fmt, ...) {
 }
 #endif
 
+const uint8_t dummyCommand[8] = {0x9F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 void reset() {
     uint8_t *garbage = (uint8_t*)malloc(sizeof(uint8_t) * 0x2000);
     if (!garbage) {
         // FIXME
         return;
     }
-    cardReadHeader(garbage);
+    _sendCommand(dummyCommand, 0x2000, garbage, 32);
     free(garbage);
 }
 
