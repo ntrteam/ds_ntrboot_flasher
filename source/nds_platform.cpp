@@ -120,7 +120,9 @@ int platform::logMessage(log_priority priority, const char *fmt, ...) {
     iprintf("\n");
     viprintf(fmt, args);
     va_end(args);
+    iprintf("\n");
 
+    waitPressA();
     return 0;
 }
 #endif
