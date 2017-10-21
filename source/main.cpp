@@ -296,10 +296,6 @@ select_cart:
         waitPressA();
     }
 
-    iprintf("FLASHCART INITIALIZE FINISHED!!!\n");
-    waitPressA();
-    return 0;
-
 #ifndef NDSI_MODE
     bool support_restore = true;
     if (!strcmp(cart->getName(), "R4iSDHC family")) {
