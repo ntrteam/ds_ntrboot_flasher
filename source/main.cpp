@@ -20,7 +20,7 @@ u8 curr_flashrom[0xA0000] = {0};
 PrintConsole topScreen;
 PrintConsole bottomScreen;
 
-void printWarning() {
+void printBootMessage() {
     consoleSelect(&topScreen);
 
     iprintf("=   NDS NTRBOOT FLASHER   =\n\n");
@@ -44,18 +44,16 @@ void printWarning() {
     consoleClear();
 }
 
+void printWarningEject() {
+    iprintf("DO NOT EJECT FLASHCART\n");
+    iprintf("UNTIL GET SPECIAL ORDER\n\n");
+}
+
 Flashcart* selectCart() {
     uint32_t idx = 0;
 
     consoleSelect(&bottomScreen);
     consoleClear();
-#ifndef NDSI_MODE
-    iprintf("Please eject and remove SDCARD\n");
-    iprintf("Then reinsert cartridge.\n\n");
-#else
-    iprintf("NDSi can't support hotswap\n");
-    iprintf("You can lost flashcart feature.\n\n");
-#endif
     iprintf("<UP/DOWN> Select flashcart\n");
     iprintf("<A> Confirm\n");
 #ifndef NDSI_MODE
@@ -170,7 +168,9 @@ int inject(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
 
-    iprintf("Flash ntrboothax\n");
+    iprintf("Flash ntrboothax\n\n");
+    printWarningEject();
+
     cart->injectNtrBoot(blowfish_key, firm, firm_size);
     iprintf("\nDone\n\n");
 
@@ -199,10 +199,11 @@ int restore(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
 
+    iprintf("Restore original flash\n\n");
+    printWarningEject();
+
     iprintf("Read current flashrom\n");
     cart->readFlash(0, length, temp);
-
-    iprintf("\n\nRestore original flash\n");
 
     const int chunk_size = 64 * 1024;
     int chunk = 0;
@@ -273,7 +274,7 @@ int main(void) {
 
     sysSetBusOwners(true, true); // give ARM9 access to the cart
 
-    printWarning();
+    printBootMessage();
 
     Flashcart *cart;
 
@@ -286,20 +287,20 @@ select_cart:
             return 0;
 #endif
         }
+
+        consoleSelect(&bottomScreen);
+        consoleClear();
         reset();
         if (cart->initialize()) {
             break;
         }
-        consoleSelect(&bottomScreen);
-        consoleClear();
         iprintf("Flashcart setup failed\n");
         waitPressA();
     }
 
-#ifndef NDSI_MODE
     bool support_restore = true;
+#ifndef NDSI_MODE
     if (!strcmp(cart->getName(), "R4iSDHC family")) {
-        iprintf("This cart not support restore\n");
         support_restore = false;
     }
 
@@ -308,19 +309,33 @@ select_cart:
         waitPressA();
         goto select_cart;
     }
+#else
+    support_restore = false;
 #endif
 
     while (true) {
 flash_menu:
         consoleSelect(&bottomScreen);
         consoleClear();
-        iprintf("DO NOT EJECT FLASHCART\n\n");
+#ifndef NDSI_MODE
+        if (support_restore) {
+            iprintf("SUPPORT RESTORE\n");
+            iprintf("Swap cart without SDCARD.\n\n");
+        }
+#endif
+        if (!support_restore) {
+            iprintf("NOT SUPPORT RESTORE\n");
+            iprintf("You can lost flashcart feature.\n\n");
+        }
+
         iprintf("<A> Inject ntrboothax\n");
 #ifndef NDSI_MODE
         if (support_restore) {
             iprintf("<X> Restore ntrboothax\n");
+            iprintf("<B> Return\n");
+        } else {
+            iprintf("<B> Exit\n");
         }
-        iprintf("<B> Return\n");
 #else
         iprintf("<B> Exit\n");
 #endif
@@ -333,13 +348,18 @@ flash_menu:
                 inject(cart);
                 break;
             }
+
 #ifndef NDSI_MODE
             if (support_restore && (keys & KEY_X)) {
                 restore(cart);
                 break;
             }
             if (keys & KEY_B) {
-                if (support_restore && waitConfirmLostDump()) {
+                if (!support_restore) {
+                    cart->shutdown();
+                    return 0;
+                }
+                if (waitConfirmLostDump()) {
                     cart->shutdown();
                     goto select_cart;
                 }

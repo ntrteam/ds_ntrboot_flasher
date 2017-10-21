@@ -18,11 +18,11 @@ using namespace flashcart_core;
 #ifndef NDSI_MODE
 // NDS/NDSL required key initalize after hotswap
 extern const bool platform::HAS_HW_KEY2 = true;
-extern const bool platform::FORCE_BYPASS_INIT_BLOWFISH = false;
+extern const bool platform::BYPASS_CART_INIT = false;
 #else
 // NDSI mode will be already loaded BF key
 extern const bool platform::HAS_HW_KEY2 = false;
-extern const bool platform::FORCE_BYPASS_INIT_BLOWFISH = true;
+extern const bool platform::BYPASS_CART_INIT = true;
 bool enabled_secure_flags = true;
 #endif
 
@@ -58,7 +58,6 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
     if (enabled_secure_flags) {
         defaultFlags |= CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT;
     }
-    platform::logMessage(LOG_DEBUG, "flags %X %X %X %X", defaultFlags, enabled_secure_flags, platform::HAS_HW_KEY2, platform::FORCE_BYPASS_INIT_BLOWFISH);
 #endif
 
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
@@ -84,11 +83,11 @@ int32_t platform::resetCard() {
 }
 
 #ifdef NDSI_MODE
-void platform::enableSecureFlags() {
+void platform::enableSecureFlagOverride() {
     enabled_secure_flags = true;
 }
 
-void platform::disableSecureFlags() {
+void platform::disableSecureFlagOverride() {
     enabled_secure_flags = false;
 }
 #endif
@@ -148,6 +147,12 @@ int platform::logMessage(log_priority priority, const char *fmt, ...) {
 const uint8_t dummyCommand[8] = {0x9F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 void reset() {
+#ifndef NDSI_MODE
+    iprintf("Eject cart and remove SDCARD\n");
+    iprintf("Then reinsert cartridge.\n\n");
+
+    waitPressA();
+#endif
     uint8_t *garbage = (uint8_t*)malloc(sizeof(uint8_t) * 0x2000);
     if (!garbage) {
         // FIXME
@@ -155,9 +160,4 @@ void reset() {
     }
     _sendCommand(dummyCommand, 0x2000, garbage, 32);
     free(garbage);
-}
-
-uint32_t getChipID() {
-    reset();
-    return cardReadID(32);
 }
