@@ -148,8 +148,9 @@ const uint8_t dummyCommand[8] = {0x9F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 
 void reset() {
 #ifndef NDSI_MODE
-    iprintf("Eject cart and remove SDCARD\n");
-    iprintf("Then reinsert cartridge.\n\n");
+    iprintf("Please eject the cartridge,\n");
+    iprintf("remove the SD card,\n");
+    iprintf("then reinsert the cartridge.\n\n");
 
     waitPressA();
 #endif

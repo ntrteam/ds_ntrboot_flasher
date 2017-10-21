@@ -23,22 +23,22 @@ PrintConsole bottomScreen;
 void printBootMessage() {
     consoleSelect(&topScreen);
 
-    iprintf("=   NDS NTRBOOT FLASHER   =\n\n");
+    iprintf("=    NDS NTRBOOT FLASHER    =\n\n");
 
     consoleSelect(&bottomScreen);
 
-    iprintf("* if you use non ak2i     *\n");
-    iprintf("* you will lost flashcart *\n");
-    iprintf("* feature.                *\n");
+    iprintf("* Your cart cannot be used  *\n");
+    iprintf("* as a flashcart after it   *\n");
+    iprintf("* is flashed (except AK2i)  *\n");
 #ifndef NDSI_MODE
-    iprintf("* DO NOT CLOSE THIS APP   *\n");
-    iprintf("* IF YOU DONT HAVE SAME   *\n");
-    iprintf("* FLASHCART               *\n");
+    iprintf("* DO NOT CLOSE THIS APP IF  *\n");
+    iprintf("* YOU WISH TO RESTORE THE   *\n");
+    iprintf("* FLASH                     *\n");
 #else
-    iprintf("* WARN: ONLY TESTED WITH  *\n");
-    iprintf("* 3DS DEVICE.             *\n");
+    iprintf("* WARNING: ONLY TESTED ON   *\n");
+    iprintf("* 3DS TWL MODE              *\n");
 #endif
-    iprintf("* AT YOUR OWN RISK        *\n");
+    iprintf("* AT YOUR OWN RISK          *\n");
 
     waitPressA();
     consoleClear();
@@ -54,6 +54,7 @@ Flashcart* selectCart() {
 
     consoleSelect(&bottomScreen);
     consoleClear();
+
     iprintf("<UP/DOWN> Select flashcart\n");
     iprintf("<A> Confirm\n");
 #ifndef NDSI_MODE
@@ -99,7 +100,7 @@ Flashcart* selectCart() {
 u8 dump(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
-    iprintf("Preload original firmware\n");
+    iprintf("Reading cart flash\n");
 
     // FIXME: we need to check flashcart's data position
     u32 length = cart->getMaxLength();
@@ -168,7 +169,7 @@ int inject(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
 
-    iprintf("Flash ntrboothax\n\n");
+    iprintf("Inject ntrboothax\n\n");
     printWarningEject();
 
     cart->injectNtrBoot(blowfish_key, firm, firm_size);
@@ -202,8 +203,10 @@ int restore(Flashcart *cart) {
     iprintf("Restore original flash\n\n");
     printWarningEject();
 
-    iprintf("Read current flashrom\n");
+    iprintf("reading current flash\n");
     cart->readFlash(0, length, temp);
+
+    iprintf("\n\nrestoring original flash\n");
 
     const int chunk_size = 64 * 1024;
     int chunk = 0;
@@ -220,10 +223,8 @@ int restore(Flashcart *cart) {
     memset(curr_flashrom, 0, 0xA0000);
     temp = curr_flashrom;
 
-    iprintf("\n\nReload current flashrom\n");
+    iprintf("\n\nverifying...  ");
     cart->readFlash(0, length, temp);
-
-    iprintf("\n\nVerify...  ");
 
     for (uint32_t i = 0; i < length; i += chunk_size) {
         if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
@@ -244,7 +245,8 @@ exit:
 int waitConfirmLostDump() {
     consoleSelect(&bottomScreen);
     consoleClear();
-    iprintf("Will lost original cart firm\n\n");
+    iprintf("If you continue, the cart's\n");
+    iprintf("flash will be lost.\n\n");
     iprintf("<Y> Continue\n");
     iprintf("<B> Cancel\n");
 
@@ -305,7 +307,7 @@ select_cart:
     }
 
     if (support_restore && dump(cart)) {
-        iprintf("Flashcart load failed\n");
+        iprintf("Flash read failed\n");
         waitPressA();
         goto select_cart;
     }
@@ -320,18 +322,21 @@ flash_menu:
 #ifndef NDSI_MODE
         if (support_restore) {
             iprintf("SUPPORT RESTORE\n");
-            iprintf("Swap cart without SDCARD.\n\n");
+            iprintf("You can swap another\n");
+            iprintf("same type cartridge,\n");
+            iprintf("without the SD card.\n\n");
         }
 #endif
         if (!support_restore) {
             iprintf("NOT SUPPORT RESTORE\n");
-            iprintf("You can lost flashcart feature.\n\n");
+            iprintf("Flashcart functionality will\n");
+            iprintf("be lost.\n\n");
         }
 
         iprintf("<A> Inject ntrboothax\n");
 #ifndef NDSI_MODE
         if (support_restore) {
-            iprintf("<X> Restore ntrboothax\n");
+            iprintf("<X> Restore flash\n");
             iprintf("<B> Return\n");
         } else {
             iprintf("<B> Exit\n");
