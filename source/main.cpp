@@ -23,22 +23,22 @@ PrintConsole bottomScreen;
 void printWarning() {
     consoleSelect(&topScreen);
 
-    iprintf("=   NDS NTRBOOT FLASHER   =\n\n");
+    iprintf("=    NDS NTRBOOT FLASHER    =\n\n");
 
     consoleSelect(&bottomScreen);
 
-    iprintf("* if you use non ak2i     *\n");
-    iprintf("* you will lost flashcart *\n");
-    iprintf("* feature.                *\n");
+    iprintf("* Your cart cannot be used  *\n");
+    iprintf("* as a flashcart after it   *\n");
+    iprintf("* is flashed (except AK2i)  *\n");
 #ifndef NDSI_MODE
-    iprintf("* DO NOT CLOSE THIS APP   *\n");
-    iprintf("* IF YOU DONT HAVE SAME   *\n");
-    iprintf("* FLASHCART               *\n");
+    iprintf("* DO NOT CLOSE THIS APP IF  *\n");
+    iprintf("* YOU WISH TO RESTORE THE   *\n");
+    iprintf("* FLASH                     *\n");
 #else
-    iprintf("* WARN: ONLY TESTED WITH  *\n");
-    iprintf("* 3DS DEVICE.             *\n");
+    iprintf("* WARNING: ONLY TESTED ON   *\n");
+    iprintf("* 3DS TWL MODE              *\n");
 #endif
-    iprintf("* AT YOUR OWN RISK        *\n");
+    iprintf("* AT YOUR OWN RISK          *\n");
 
     waitPressA();
     consoleClear();
@@ -50,11 +50,15 @@ Flashcart* selectCart() {
     consoleSelect(&bottomScreen);
     consoleClear();
 #ifndef NDSI_MODE
-    iprintf("Please eject and remove SDCARD\n");
-    iprintf("Then reinsert cartridge.\n\n");
+    iprintf("Please eject the cartridge,\n");
+    iprintf("remove the SD card,\n");
+    iprintf("then reinsert the cartridge.\n\n");
 #else
-    iprintf("NDSi can't support hotswap\n");
-    iprintf("You can lost flashcart feature.\n\n");
+    iprintf("NDSi does not support cart\n");
+    iprintf("hotswapping, so you cannot\n");
+    iprintf("restore the cart's flash.\n");
+    iprintf("Flashcart functionality will\n");
+    iprintf("be lost.\n\n");
 #endif
     iprintf("<UP/DOWN> Select flashcart\n");
     iprintf("<A> Confirm\n");
@@ -101,7 +105,7 @@ Flashcart* selectCart() {
 u8 dump(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
-    iprintf("Preload original firmware\n");
+    iprintf("Reading cart flash\n");
 
     // FIXME: we need to check flashcart's data position
     u32 length = cart->getMaxLength();
@@ -170,7 +174,7 @@ int inject(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
 
-    iprintf("Flash ntrboothax\n");
+    iprintf("Inject ntrboothax\n");
     cart->injectNtrBoot(blowfish_key, firm, firm_size);
     iprintf("\nDone\n\n");
 
@@ -199,10 +203,10 @@ int restore(Flashcart *cart) {
     consoleSelect(&bottomScreen);
     consoleClear();
 
-    iprintf("Read current flashrom\n");
+    iprintf("Reading current flash\n");
     cart->readFlash(0, length, temp);
 
-    iprintf("\n\nRestore original flash\n");
+    iprintf("\n\nRestoring original flash\n");
 
     const int chunk_size = 64 * 1024;
     int chunk = 0;
@@ -219,10 +223,8 @@ int restore(Flashcart *cart) {
     memset(curr_flashrom, 0, 0xA0000);
     temp = curr_flashrom;
 
-    iprintf("\n\nReload current flashrom\n");
+    iprintf("\n\nVerifying...  ");
     cart->readFlash(0, length, temp);
-
-    iprintf("\n\nVerify...  ");
 
     for (uint32_t i = 0; i < length; i += chunk_size) {
         if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
@@ -257,7 +259,8 @@ int recheckCart(Flashcart *cart) {
 int waitConfirmLostDump() {
     consoleSelect(&bottomScreen);
     consoleClear();
-    iprintf("Will lost original cart firm\n\n");
+    iprintf("If you continue, the cart's\n");
+    iprintf("flash will be lost.\n\n");
     iprintf("<Y> Continue\n");
     iprintf("<B> Cancel\n");
 
@@ -313,12 +316,12 @@ select_cart:
 #ifndef NDSI_MODE
     bool support_restore = true;
     if (!strcmp(cart->getName(), "R4iSDHC family")) {
-        iprintf("This cart not support restore\n");
+        iprintf("Cart flash too big to be saved\n");
         support_restore = false;
     }
 
     if (support_restore && dump(cart)) {
-        iprintf("Flashcart load failed\n");
+        iprintf("Flash read failed\n");
         waitPressA();
         goto select_cart;
     }
@@ -331,7 +334,7 @@ flash_menu:
         iprintf("<A> Inject ntrboothax\n");
 #ifndef NDSI_MODE
         if (support_restore) {
-            iprintf("<X> Restore ntrboothax\n");
+            iprintf("<X> Restore flash\n");
         }
         iprintf("<B> Return\n");
 #else
