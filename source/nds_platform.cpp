@@ -18,13 +18,13 @@ using namespace flashcart_core;
 #ifndef NDSI_MODE
 // NDS/NDSL required key initalize after hotswap
 extern const bool platform::HAS_HW_KEY2 = true;
-extern const bool platform::BYPASS_CART_INIT = false;
+extern const bool platform::CAN_RESET = true;
 #else
 // NDSI mode will be already loaded BF key
 extern const bool platform::HAS_HW_KEY2 = false;
-extern const bool platform::BYPASS_CART_INIT = true;
-bool enabled_secure_flags = true;
+extern const bool platform::CAN_RESET = false;
 #endif
+extern const ntrcard::Status platform::INITIAL_ENCRYPTION = ntrcard::Status::KEY2;
 
 void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
     u8 reversed[8];
@@ -54,12 +54,6 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
             break;
     }
 
-#ifdef NDSI_MODE
-    if (enabled_secure_flags) {
-        defaultFlags |= CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT;
-    }
-#endif
-
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
                        (u32*)resp, response_len, reversed);
 }
@@ -81,16 +75,6 @@ int32_t platform::resetCard() {
     reset();
     return 0;
 }
-
-#ifdef NDSI_MODE
-void platform::enableSecureFlagOverride() {
-    enabled_secure_flags = true;
-}
-
-void platform::disableSecureFlagOverride() {
-    enabled_secure_flags = false;
-}
-#endif
 
 void platform::initBlowfishPS(uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key) {
     if (sizeof(ps) != 0x1048) {
