@@ -138,11 +138,5 @@ void reset() {
 
     waitPressA();
 #endif
-    uint8_t *garbage = (uint8_t*)malloc(sizeof(uint8_t) * 0x2000);
-    if (!garbage) {
-        // FIXME
-        return;
-    }
-    _sendCommand(dummyCommand, 0x2000, garbage, 32);
-    free(garbage);
+    _sendCommand(dummyCommand, 0x2000, NULL, 32);
 }
