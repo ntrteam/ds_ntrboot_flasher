@@ -7,10 +7,7 @@
 #include "ntrcard.h"
 #include "delay.h"
 #include "nds_platform.h"
-
-extern uint8_t *blowfish_ntr_bin;
-extern uint8_t *blowfish_retail_bin;
-extern uint8_t *blowfish_dev_bin;
+#include "binaries.h"
 
 using namespace std;
 using namespace flashcart_core;
@@ -77,20 +74,25 @@ int32_t platform::resetCard() {
 }
 
 void platform::initBlowfishPS(uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key) {
-    if (sizeof(ps) != 0x1048) {
-        return;
-    }
-
     const void *ptr;
     switch (key) {
         default: // blah
         case ntrcard::BlowfishKey::NTR:
+            if (blowfish_ntr_bin_size != sizeof(ps)) {
+                return;
+            }
             ptr = blowfish_ntr_bin;
             break;
         case ntrcard::BlowfishKey::B9RETAIL:
+            if (blowfish_retail_bin_size != sizeof(ps)) {
+                return;
+            }
             ptr = blowfish_retail_bin;
             break;
         case ntrcard::BlowfishKey::B9DEV:
+            if (blowfish_dev_bin_size != sizeof(ps)) {
+                return;
+            }
             ptr = blowfish_dev_bin;
             break;
     }

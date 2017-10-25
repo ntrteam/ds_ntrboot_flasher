@@ -3,3 +3,4 @@
 build/
 binaries/
 include/binaries.h
+source/binaries.cpp
