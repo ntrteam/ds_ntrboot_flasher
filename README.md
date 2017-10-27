@@ -11,6 +11,11 @@ Only tested NDSL + AK2I & R4i Gold
 2. `python extract_binaries.py`
 3. then `make`
 
+#### Notes
+* Needs experimental libnds; after [9dcc1bd][expr_libnds] version
+
+[expr_libnds]: https://github.com/devkitPro/libnds/commit/9dcc1bd33
+
 #### Special `make` options
 * `NDSI_MODE=1`
   - build nds compatible mode
