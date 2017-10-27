@@ -287,6 +287,8 @@ select_cart:
         if (cart == NULL) {
 #ifdef NDSI_MODE
             return 0;
+#else
+            continue;
 #endif
         }
 
