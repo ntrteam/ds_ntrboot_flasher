@@ -11,21 +11,24 @@ Only tested NDSL + AK2I & R4i Gold
 2. `python extract_binaries.py`
 3. then `make`
 
-#### Notes
+#### Notes for build
 * Needs experimental libnds; after [9dcc1bd][expr_libnds] version
+* You can extract blowfish binaries using [ak2ifirm][ak2ifirm]
+* Change mode requires `make clean` before rebuild.
 
 [expr_libnds]: https://github.com/devkitPro/libnds/commit/9dcc1bd33
+[ak2ifirm]: https://github.com/ntrteam/ak2ifirm
 
 #### Special `make` options
 * `NDSI_MODE=1`
-  - build nds compatible mode
-  - remove cart swap and load & restore command
+  - build DSi compatible mode
+  - disable cart hotswap and load & restore features
 * `DEBUG_DUMP=1`
-  - print first 16bytes at load
+  - print first 16bytes of loaded flash data
 * `DEBUG_DUMP=2`
-  - print all dumps
+  - print all bytes of loaded flash data
 * `DEBUG_PRINT=1`
-  - print flashcart_core's log message
+  - enable flashcart_core's log message
 
 ### Credits
 * [Normmatt][normmatt] - Original implement 3DS version ntrcardhax flasher
