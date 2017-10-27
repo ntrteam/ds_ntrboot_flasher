@@ -150,6 +150,8 @@ void reset() {
     iprintf("then reinsert the cartridge.\n\n");
 
     waitPressA();
+
+    ntrcard::state.status = ntrcard::Status::RAW;
 #endif
 
     ntrcard::sendCommand(dummyCommand, 0x2000, NULL, 32);

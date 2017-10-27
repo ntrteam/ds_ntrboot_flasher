@@ -228,11 +228,11 @@ int restore(Flashcart *cart) {
 
     for (uint32_t i = 0; i < length; i += chunk_size) {
         if (!compareBuf(orig_flashrom + i, curr_flashrom + i, chunk_size)) {
-            iprintf("fail");
+            iprintf("\nfail");
             goto exit;
         }
     }
-    iprintf("ok");
+    iprintf("\nok");
 
 exit:
     iprintf("\nDone\n\n");
@@ -339,10 +339,9 @@ flash_menu:
 #ifndef NDSI_MODE
         if (support_restore) {
             iprintf("<X> Restore flash\n");
-            iprintf("<B> Return\n");
-        } else {
-            iprintf("<B> Exit\n");
+            iprintf("<Y> Change cartridge\n");
         }
+        iprintf("<B> Return\n");
 #else
         iprintf("<B> Exit\n");
 #endif
@@ -357,20 +356,30 @@ flash_menu:
             }
 
 #ifndef NDSI_MODE
-            if (support_restore && (keys & KEY_X)) {
-                restore(cart);
-                break;
-            }
-            if (keys & KEY_B) {
-                if (!support_restore) {
-                    cart->shutdown();
-                    return 0;
+            if (support_restore) {
+                if (keys & KEY_X) {
+                    restore(cart);
+                    break;
                 }
-                if (waitConfirmLostDump()) {
+                if (keys & KEY_Y) {
                     cart->shutdown();
-                    goto select_cart;
+                    do {
+                        reset();
+                    } while(!cart->initialize());
+                    goto flash_menu;
                 }
-                goto flash_menu;
+                if (keys & KEY_B) {
+                    if (waitConfirmLostDump()) {
+                        cart->shutdown();
+                        goto select_cart;
+                    }
+                    goto flash_menu;
+                }
+            } else {
+                if (keys & KEY_B) {
+                    cart->shutdown();
+                    goto flash_menu;
+                }
             }
 #else
             if (keys & KEY_B) {
