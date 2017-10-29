@@ -24,9 +24,6 @@ extern const bool platform::CAN_RESET = false;
 extern const ntrcard::Status platform::INITIAL_ENCRYPTION = ntrcard::Status::KEY2;
 
 void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
-    platform::logMessage(LOG_DEBUG, "internal cmd: %02X %02X %02X %02X %02X %02X %02X %02X ",
-        cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], cmdbuf[7]);
-
     u8 reversed[8];
     for (int i = 0; i < 8; i++) {
         reversed[7 - i] = cmdbuf[i];
@@ -53,15 +50,6 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
             defaultFlags |= CARD_BLK_SIZE(4);
             break;
     }
-
-    platform::logMessage(LOG_DEBUG, "flags: %X, status %X",
-            defaultFlags | CARD_ACTIVATE | CARD_nRESET,
-            ntrcard::state.status);
-
-    platform::logMessage(LOG_DEBUG, "flags: %X, status %X",
-            defaultFlags | CARD_ACTIVATE | CARD_nRESET | CARD_SEC_CMD | CARD_SEC_EN | CARD_SEC_DAT,
-            ntrcard::state.status);
-
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
                        (u32*)resp, response_len, reversed);
 }
