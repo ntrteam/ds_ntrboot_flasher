@@ -1,19 +1,19 @@
 ## NDS version NTRBOOTHAX flasher
-Only tested NDSL + AK2I & R4i Gold
+Only tested with NDSL + AK2I & R4i Gold.
 
 ### Build
-1. copy these 5 binaries to `binaries` directory.
+1. Copy these 5 binaries to the `binaries` directory.
   - `blowfish_ntr.bin`
   - `blowfish_dev.bin`
   - `blowfish_retail.bin`
   - `boot9strap_ntr_dev.firm`
   - `boot9strap_ntr.firm`
 2. `python extract_binaries.py`
-3. then `make`
+3. Then `make`
 
 #### Notes for build
-* Needs experimental libnds; after [9dcc1bd][expr_libnds] version
-* You can extract blowfish binaries using [ak2ifirm][ak2ifirm]
+* Needs experimental libnds; after [9dcc1bd][expr_libnds] version.
+* You can extract blowfish binaries using [ak2ifirm][ak2ifirm].
 * Change mode requires `make clean` before rebuild.
 
 [expr_libnds]: https://github.com/devkitPro/libnds/commit/9dcc1bd33
@@ -31,12 +31,12 @@ Only tested NDSL + AK2I & R4i Gold
   - enable flashcart_core's log message
 
 ### Credits
-* [Normmatt][normmatt] - Original implement 3DS version ntrcardhax flasher
+* [Normmatt][normmatt] - Original implementation of the 3DS version ntrcardhax flasher.
 * [SciresM][sciresm] - Parent of `boot9strap`
 * [kitling][kitling] - Made `flashcart_core`
 * [hedgeberg][hedgeberg] - RE Cartridge
 * [HandsomeMatt][HandsomeMatt] - RE Cartridge
-* And other talented hackers
+* And other talented hackers.
 
 [normmatt]: https://github.com/Normmatt
 [sciresm]: https://twitter.com/SciresM
