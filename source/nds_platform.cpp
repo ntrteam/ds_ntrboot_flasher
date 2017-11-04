@@ -51,7 +51,7 @@ void _sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, u
             break;
     }
     cardPolledTransfer(defaultFlags | CARD_ACTIVATE | CARD_nRESET,
-                       (u32*)resp, response_len, reversed);
+                       (u32*)resp, (response_len / 4), reversed);
 }
 
 bool platform::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, ntrcard::OpFlags flags) {
